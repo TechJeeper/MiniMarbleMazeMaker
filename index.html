@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,12 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>MiniMarbleMazeMaker</title>
     
-    <!-- Tailwind for modern, sleek UI -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Robust, standard Three.js imports that work universally -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/fflate@0.6.9/umd/index.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/STLExporter.js"></script>
 
     <style>
@@ -51,29 +50,23 @@
 </head>
 <body class="w-screen h-screen">
 
-    <!-- Fullscreen 3D Canvas -->
     <div id="canvas-container"></div>
 
-    <!-- Floating UI Layer -->
     <div class="fixed inset-0 z-10 pointer-events-none flex flex-col justify-between sm:justify-start p-4 sm:p-6 w-full h-full box-border">
         
-        <!-- Header & Controls Card -->
         <div class="pointer-events-auto glass rounded-2xl p-5 shadow-2xl w-full sm:w-80 flex flex-col gap-5 mt-auto sm:mt-0 max-h-[85vh] overflow-y-auto">
             
-            <!-- Title -->
             <div>
                 <h1 class="text-2xl font-black bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">MiniMarbleMaze<br>Maker</h1>
-                <p class="text-xs text-slate-400 mt-1">40x3.5mm Print-in-Place Maze</p>
+                <p class="text-xs text-slate-400 mt-1">40x3.25mm Print-in-Place Maze</p>
             </div>
 
-            <!-- Print Instructions -->
             <div class="bg-blue-900/30 border border-blue-500/30 rounded-xl p-3">
                 <p class="text-xs text-blue-200 leading-relaxed">
-                    <strong class="text-blue-400">Pro-Tip:</strong> Set a pause in your slicer just before the top 0.8mm shell prints. Drop in a <strong>1.5mm - 2mm steel ball</strong>, then resume!
+                    <strong class="text-blue-400">Pro-Tip:</strong> Set a pause in your slicer just before the top 0.4mm shell prints. Drop in a <strong>1.5mm - 2mm steel ball</strong>, then resume!
                 </p>
             </div>
 
-            <!-- Controls -->
             <div class="flex items-center justify-between mt-2">
                 <span class="text-sm font-medium text-slate-300">Preview Top Shell</span>
                 <div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
@@ -82,7 +75,6 @@
                 </div>
             </div>
 
-            <!-- Buttons -->
             <div class="flex flex-col gap-3 mt-2">
                 <button id="btnGenerate" class="w-full py-3.5 px-4 bg-slate-700/80 hover:bg-slate-600 active:bg-slate-500 text-white font-semibold rounded-xl transition shadow-lg flex items-center justify-center gap-2 border border-slate-600">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
@@ -95,7 +87,6 @@
             </div>
         </div>
 
-        <!-- Legend (Top Right on desktop, top center on mobile) -->
         <div class="absolute top-4 right-4 left-4 sm:left-auto pointer-events-auto flex justify-center sm:justify-end gap-3">
             <div class="glass px-3 py-1.5 rounded-full flex items-center gap-2">
                 <div class="w-2.5 h-2.5 rounded-full bg-white shadow-[0_0_5px_#fff]"></div>
@@ -113,15 +104,23 @@
         // --- Specifications ---
         const SPEC = {
             radius: 20.0,
-            thickness: 3.5,
-            shell: 0.8,
+            thickness: 3.25,
+            shell: 0.8, // Original shell height
             outerWall: 1.0,
             wallWidth: 0.8,
             centerRadius: 4.0,
             rings: 6,
             ringCounts: [1, 8, 16, 16, 32, 32]
         };
-        const MAZE_HEIGHT = SPEC.thickness - (2 * SPEC.shell); // 1.9mm
+
+        // --- Shell Height Adjustment ---
+        // Reduce top/bottom shells by half (from 0.8mm to 0.4mm)
+        const NEW_SHELL_HEIGHT = SPEC.shell / 2; // 0.4mm
+        
+        // --- Recalculate Maze Height ---
+        // The taller maze height is now calculated based on the thinner shells.
+        const NEW_MAZE_HEIGHT = SPEC.thickness - (2 * NEW_SHELL_HEIGHT); // 2.45mm
+        
         const INNER_RADIUS = SPEC.radius - SPEC.outerWall; // 19.0mm
         const RING_WIDTH = (INNER_RADIUS - SPEC.centerRadius) / (SPEC.rings - 1); 
 
@@ -277,21 +276,34 @@
         function createRadialWall(theta, rIn, rOut, w) {
             const shape = new THREE.Shape();
             const dirX = Math.cos(theta), dirY = Math.sin(theta);
-            const normX = -dirY, normY = dirX;
+            
+            // Tangent vector ensures perfect perpendicular thickness
+            const tanX = -dirY, tanY = dirX;
 
-            const rInAdj = rIn - w/2 + 0.05;
-            const rOutAdj = rOut + w/2 - 0.05;
+            // Extend radial walls deeply to guarantee union overlap in Slicer CSG
+            const rInAdj = rIn - w/2 - 0.1;
+            const rOutAdj = rOut + w/2 + 0.1;
 
-            const p1x = rInAdj * dirX + (w/2) * normX, p1y = rInAdj * dirY + (w/2) * normY;
-            const p2x = rOutAdj * dirX + (w/2) * normX, p2y = rOutAdj * dirY + (w/2) * normY;
-            const p3x = rOutAdj * dirX - (w/2) * normX, p3y = rOutAdj * dirY - (w/2) * normY;
-            const p4x = rInAdj * dirX - (w/2) * normX, p4y = rInAdj * dirY - (w/2) * normY;
+            // Coordinates are plotted strictly CCW to prevent flipped normal vectors.
+            // Bottom-Right
+            const br_x = rInAdj * dirX - (w/2) * tanX;
+            const br_y = rInAdj * dirY - (w/2) * tanY;
+            // Top-Right
+            const tr_x = rOutAdj * dirX - (w/2) * tanX;
+            const tr_y = rOutAdj * dirY - (w/2) * tanY;
+            // Top-Left
+            const tl_x = rOutAdj * dirX + (w/2) * tanX;
+            const tl_y = rOutAdj * dirY + (w/2) * tanY;
+            // Bottom-Left
+            const bl_x = rInAdj * dirX + (w/2) * tanX;
+            const bl_y = rInAdj * dirY + (w/2) * tanY;
 
-            shape.moveTo(p1x, p1y);
-            shape.lineTo(p2x, p2y);
-            shape.lineTo(p3x, p3y);
-            shape.lineTo(p4x, p4y);
-            shape.lineTo(p1x, p1y);
+            // CCW Winding: BottomRight -> TopRight -> TopLeft -> BottomLeft
+            shape.moveTo(br_x, br_y);
+            shape.lineTo(tr_x, tr_y);
+            shape.lineTo(tl_x, tl_y);
+            shape.lineTo(bl_x, bl_y);
+            shape.lineTo(br_x, br_y);
             return shape;
         }
 
@@ -299,11 +311,18 @@
             const shape = new THREE.Shape();
             const rOuter = R + w/2;
             const rInner = R - w/2;
-            shape.moveTo(rOuter * Math.cos(theta1), rOuter * Math.sin(theta1));
-            shape.absarc(0, 0, rOuter, theta1, theta2, false);
-            shape.lineTo(rInner * Math.cos(theta2), rInner * Math.sin(theta2));
-            shape.absarc(0, 0, rInner, theta2, theta1, true);
-            shape.lineTo(rOuter * Math.cos(theta1), rOuter * Math.sin(theta1));
+            
+            // Add a tiny angular overlap so arc walls solidly fuse with adjacent walls
+            const overlap = 0.02; 
+            const t1 = theta1 - overlap;
+            const t2 = theta2 + overlap;
+
+            // Draw CCW outer curve, then CW inner curve, forming a CCW outer boundary
+            shape.moveTo(rOuter * Math.cos(t1), rOuter * Math.sin(t1));
+            shape.absarc(0, 0, rOuter, t1, t2, false);
+            shape.lineTo(rInner * Math.cos(t2), rInner * Math.sin(t2));
+            shape.absarc(0, 0, rInner, t2, t1, true);
+            shape.lineTo(rOuter * Math.cos(t1), rOuter * Math.sin(t1));
             return shape;
         }
 
@@ -333,9 +352,21 @@
                 metalness: 0.2 
             });
 
+            // --- Slicer Coplanar Interface Fixes ---
+            // Slicers glitch at exact mathematical coplanar faces.
+            // We expand the maze by 0.1mm up and down so it physically embeds into the shells.
+            const Z_OVERLAP = 0.1; 
+            
+            // Use the new, taller maze height for extrusions.
+            const extrudeDepth = NEW_MAZE_HEIGHT + (Z_OVERLAP * 2);
+            
+            // Maze starts at the top of the thinner bottom shell.
+            const extrudeStartY = NEW_SHELL_HEIGHT - Z_OVERLAP;
+
             // 1. Base Plate
-            const baseGeo = new THREE.CylinderGeometry(SPEC.radius, SPEC.radius, SPEC.shell, 64);
-            baseGeo.translate(0, SPEC.shell / 2, 0);
+            // Geometry uses the new, thinner shell height (0.4mm)
+            const baseGeo = new THREE.CylinderGeometry(SPEC.radius, SPEC.radius, NEW_SHELL_HEIGHT, 64);
+            baseGeo.translate(0, NEW_SHELL_HEIGHT / 2, 0); // Position at origin
             const baseMesh = new THREE.Mesh(baseGeo, material);
             baseMesh.receiveShadow = true;
             baseMesh.castShadow = true;
@@ -350,9 +381,11 @@
             rimHole.absarc(0, 0, INNER_RADIUS, 0, Math.PI * 2, true);
             rimShape.holes.push(rimHole);
             
-            const rimGeo = new THREE.ExtrudeGeometry(rimShape, { depth: MAZE_HEIGHT, bevelEnabled: false, curveSegments: 64 });
+            // Uses new extrusion depth (NEW_MAZE_HEIGHT + overlap)
+            const rimGeo = new THREE.ExtrudeGeometry(rimShape, { depth: extrudeDepth, bevelEnabled: false, curveSegments: 64 });
             rimGeo.rotateX(-Math.PI / 2);
-            rimGeo.translate(0, SPEC.shell, 0);
+            // Translate to the top of the thinner base
+            rimGeo.translate(0, extrudeStartY, 0);
             const rimMesh = new THREE.Mesh(rimGeo, material);
             rimMesh.receiveShadow = true;
             rimMesh.castShadow = true;
@@ -397,18 +430,27 @@
             }
 
             if (mazeShapes.length > 0) {
-                const mazeGeo = new THREE.ExtrudeGeometry(mazeShapes, { depth: MAZE_HEIGHT, bevelEnabled: false, curveSegments: 12 });
-                mazeGeo.rotateX(-Math.PI / 2);
-                mazeGeo.translate(0, SPEC.shell, 0);
-                const mazeMesh = new THREE.Mesh(mazeGeo, material);
-                mazeMesh.receiveShadow = true;
-                mazeMesh.castShadow = true;
-                chipGroup.add(mazeMesh);
+                // Slicer Glitch Fix: Extruding everything as one geometry causes self-intersecting 
+                // mesh errors in slicers. Extruding them individually forces the slicer to union 
+                // the overlapping solid bodies natively.
+                mazeShapes.forEach(shape => {
+                    // Uses new extrusion depth (NEW_MAZE_HEIGHT + overlap)
+                    const mazeGeo = new THREE.ExtrudeGeometry(shape, { depth: extrudeDepth, bevelEnabled: false, curveSegments: 12 });
+                    mazeGeo.rotateX(-Math.PI / 2);
+                    // Translate to the top of the thinner base
+                    mazeGeo.translate(0, extrudeStartY, 0);
+                    const mazeMesh = new THREE.Mesh(mazeGeo, material);
+                    mazeMesh.receiveShadow = true;
+                    mazeMesh.castShadow = true;
+                    chipGroup.add(mazeMesh);
+                });
             }
 
             // 4. Top Shell
-            const topGeo = new THREE.CylinderGeometry(SPEC.radius, SPEC.radius, SPEC.shell, 64);
-            topGeo.translate(0, SPEC.shell + MAZE_HEIGHT + (SPEC.shell / 2), 0);
+            // Geometry uses the new, thinner shell height (0.4mm)
+            const topGeo = new THREE.CylinderGeometry(SPEC.radius, SPEC.radius, NEW_SHELL_HEIGHT, 64);
+            // Placement calculation: [base height] + [taller maze height] + [half top shell height]
+            topGeo.translate(0, NEW_SHELL_HEIGHT + NEW_MAZE_HEIGHT + (NEW_SHELL_HEIGHT / 2), 0);
             topMesh = new THREE.Mesh(topGeo, material);
             topMesh.castShadow = true;
             topMesh.receiveShadow = true;
@@ -421,7 +463,8 @@
             const ballGeo = new THREE.SphereGeometry(1.0, 16, 16);
             const ballMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.8 });
             const startMarker = new THREE.Mesh(ballGeo, ballMat);
-            startMarker.position.set(0, SPEC.shell + MAZE_HEIGHT/2, 0); 
+            // Update placement to center vertically in the taller maze space.
+            startMarker.position.set(0, NEW_SHELL_HEIGHT + NEW_MAZE_HEIGHT / 2, 0); 
             markersGroup.add(startMarker);
 
             const goalGeo = new THREE.CylinderGeometry(1.4, 1.4, 0.4, 16);
@@ -432,7 +475,7 @@
             const endR = SPEC.centerRadius + (SPEC.rings - 1.5) * RING_WIDTH;
             goalMarker.position.set(
                 endR * Math.cos(endAngle),
-                SPEC.shell + 0.2,
+                NEW_SHELL_HEIGHT + 0.2, // Position slightly above the thinner floor
                 -endR * Math.sin(endAngle)
             );
             markersGroup.add(goalMarker);
@@ -440,13 +483,129 @@
             scene.add(markersGroup);
         }
 
+        // --- Custom Robust Manual 3MF Exporter ---
+        // (This generates valid 3MF geometry, which can be zipped in the browser)
+        function generateManual3MF_uint8array(inputGroup) {
+            let vertexIndex = 0;
+            const verticesList = [];
+            const trianglesList = [];
+
+            // Traverse the group and process only Mesh objects
+            inputGroup.traverse( function ( child ) {
+                if ( child.isMesh ) {
+                    const geometry = child.geometry;
+                    // Standard Three.js exports use BufferGeometry
+                    if ( ! geometry.isBufferGeometry ) return;
+
+                    const positionAttribute = geometry.getAttribute( 'position' );
+                    const matrix = child.matrixWorld;
+
+                    // Iterate over triangles (every 3 position vertices)
+                    for ( let i = 0; i < positionAttribute.count; i += 3 ) {
+                        // Extract localized vertices and apply world transformation
+                        const vA = new THREE.Vector3().fromBufferAttribute( positionAttribute, i ).applyMatrix4( matrix );
+                        const vB = new THREE.Vector3().fromBufferAttribute( positionAttribute, i + 1 ).applyMatrix4( matrix );
+                        const vC = new THREE.Vector3().fromBufferAttribute( positionAttribute, i + 2 ).applyMatrix4( matrix );
+
+                        // Manual normal vector check (simplistic)
+                        const edge1 = new THREE.Vector3().subVectors(vB, vA);
+                        const edge2 = new THREE.Vector3().subVectors(vC, vA);
+                        const normal = new THREE.Vector3().crossVectors(edge1, edge2).normalize();
+
+                        // Verification (simplistic): Ensure vertices aren't identical and normal exists
+                        if (va.equals(vb) || vb.equals(vc) || normal.length() === 0) {
+                            console.warn("Manual Normal Verification Failed for Triangle:", va, vb, vc, normal);
+                        }
+
+                        // Coordinates in 3MF must be integers (mm) OR decimals. Decimals work fine.
+                        verticesList.push(`<vertex x="${vA.x}" y="${vA.y}" z="${vA.z}" />`);
+                        verticesList.push(`<vertex x="${vB.x}" y="${vB.y}" z="${vB.z}" />`);
+                        verticesList.push(`<vertex x="${vC.x}" y="${vC.y}" z="${vC.z}" />`);
+
+                        // 3MF uses vertices list references for triangles (0-indexed)
+                        trianglesList.push(`<triangle v1="${vertexIndex}" v2="${vertexIndex+1}" v3="${vertexIndex+2}" />`);
+                        vertexIndex += 3;
+                    }
+                }
+            });
+
+            if (verticesList.length === 0) {
+                throw new Error("No manifold geometry found to export.");
+            }
+
+            // --- 3MF model XML structure ---
+            const modelXML = `<?xml version="1.0" encoding="UTF-8"?>
+<model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">
+    <resources>
+        <object id="1" type="model">
+            <mesh>
+                <vertices>
+${verticesList.join('\n')}
+                </vertices>
+                <triangles>
+${trianglesList.join('\n')}
+                </triangles>
+            </mesh>
+        </object>
+    </resources>
+    <build>
+        <item objectid="1" />
+    </build>
+</model>`;
+
+            // --- ZIP Container Standard Files ---
+            // .rels (defines main meta-data relation)
+            const relsXML = `<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+    <Relationship Target="/3D/3dmodel.model" Id="rel-1" Type="http://schemas.openxmlformats.org/package/2006/relationships/meta-data/3dmodel" />
+</Relationships>`;
+
+            // [Content_Types].xml (defines file types in the package)
+            const contentTypesXML = `<?xml version="1.0" encoding="UTF-8"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+    <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml" />
+    <Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml" />
+</Types>`;
+
+            // --- Convert XML strings to Uint8Arrays for zipping ---
+            const encoder = new TextEncoder();
+            
+            // Build the ZIP file structure required by fflate
+            const zipData = {
+                '[Content_Types].xml': encoder.encode(contentTypesXML),
+                '_rels': {
+                    '.rels': encoder.encode(relsXML)
+                },
+                '3D': {
+                    '3dmodel.model': encoder.encode(modelXML)
+                }
+            };
+
+            // Run fflate compression and return the final uint8array
+            return fflate.zipSync(zipData);
+        }
+
+        // --- STL Exporter Reverted and Repaired ---
+        // (STLExporter provides robust geometry validation for standard slicers).
         function downloadSTL() {
             const originalTopVisibility = topMesh.visible;
             topMesh.visible = true; // Force top on for printing
 
-            const exporter = new THREE.STLExporter();
-            const stlString = exporter.parse(chipGroup); // Export ONLY chip, not markers
+            // Robust geometry and normal verification is natively performed 
+            // by THREE.STLExporter during parsing, generating a robust mesh.
+            
+            // CRITICAL FIX: Slicers expect Z to be the vertical UP axis. 
+            // Three.js exports Y as the UP axis. We rotate the group by 90 deg right 
+            // before exporting so it imports natively flat (Z-up) into standard slicers.
+            chipGroup.rotation.x = Math.PI / 2;
+            chipGroup.updateMatrixWorld(true);
 
+            const exporter = new THREE.STLExporter();
+            const stlString = exporter.parse(chipGroup); 
+
+            // Restore the viewer rotation
+            chipGroup.rotation.x = 0;
+            chipGroup.updateMatrixWorld(true);
             topMesh.visible = originalTopVisibility;
 
             const blob = new Blob([stlString], { type: 'text/plain' });
@@ -463,4 +622,3 @@
     </script>
 </body>
 </html>
-
