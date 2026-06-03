@@ -628,7 +628,7 @@
             );
             markersGroup.add(goalMarker);
 
-            const lineY = NEW_SHELL_HEIGHT + 0.1;
+            const lineY = SPEC.thickness + 0.35;
             const solutionPoints = getSolutionLinePoints(lineY);
             const solutionMat = new THREE.MeshBasicMaterial({ color: 0x22d3ee });
             const solutionLine = createPathTube(solutionPoints, 0.08, solutionMat);
