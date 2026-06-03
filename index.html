@@ -56,6 +56,23 @@
         .toggle-checkbox:checked + .toggle-label { background-color: #10b981; }
         .toggle-checkbox { right: 4px; z-index: 1; border-color: #e2e8f0; transition: all 0.3s; }
         .toggle-label { width: 3rem; height: 1.5rem; background-color: #475569; border-radius: 9999px; transition: all 0.3s; }
+
+        .control-field {
+            width: 100%;
+            appearance: none;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            border-radius: 0.75rem;
+            color: #f8fafc;
+            font-size: 0.875rem;
+            padding: 0.65rem 0.8rem;
+            outline: none;
+        }
+
+        .control-field:focus {
+            border-color: rgba(34, 211, 238, 0.8);
+            box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12);
+        }
     </style>
 </head>
 <body class="w-screen h-screen">
@@ -77,6 +94,28 @@
                 </p>
             </div>
 
+            <div class="flex flex-col gap-4">
+                <div>
+                    <label for="difficultySelect" class="text-sm font-medium text-slate-300">Maze Difficulty</label>
+                    <select id="difficultySelect" class="control-field mt-2 cursor-pointer">
+                        <option value="easy">Easy - extra openings</option>
+                        <option value="standard" selected>Standard - balanced</option>
+                        <option value="hard">Hard - longer route</option>
+                        <option value="expert">Expert - longest route</option>
+                    </select>
+                    <p id="difficultyHint" class="text-xs text-slate-400 mt-2 leading-relaxed">Balanced routes with the classic perfect-maze layout.</p>
+                </div>
+
+                <div>
+                    <label for="markerMode" class="text-sm font-medium text-slate-300">Start / Goal Style</label>
+                    <select id="markerMode" class="control-field mt-2 cursor-pointer">
+                        <option value="markers" selected>Glow markers</option>
+                        <option value="labels">Floating labels</option>
+                        <option value="hidden">Hidden challenge</option>
+                    </select>
+                </div>
+            </div>
+
             <div class="flex items-center justify-between mt-2">
                 <span class="text-sm font-medium text-slate-300">Preview Top Shell</span>
                 <div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
@@ -85,7 +124,19 @@
                 </div>
             </div>
 
+            <div class="flex items-center justify-between">
+                <span class="text-sm font-medium text-slate-300">Show Solution Path</span>
+                <div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+                    <input type="checkbox" name="toggle" id="toggleSolution" checked class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer top-0 bottom-0 m-auto"/>
+                    <label for="toggleSolution" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                </div>
+            </div>
+
             <div class="flex flex-col gap-3 mt-2">
+                <button id="btnPreviewBall" class="w-full py-3.5 px-4 bg-emerald-700/80 hover:bg-emerald-600 active:bg-emerald-500 text-white font-semibold rounded-xl transition shadow-lg flex items-center justify-center gap-2 border border-emerald-500/60">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-5.197-3.027A1 1 0 008 9.006v5.988a1 1 0 001.555.832l5.197-2.961a1 1 0 000-1.697z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12A9 9 0 113 12a9 9 0 0118 0z"></path></svg>
+                    Preview Marble Run
+                </button>
                 <button id="btnGenerate" class="w-full py-3.5 px-4 bg-slate-700/80 hover:bg-slate-600 active:bg-slate-500 text-white font-semibold rounded-xl transition shadow-lg flex items-center justify-center gap-2 border border-slate-600">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
                     Regenerate Maze
@@ -94,6 +145,7 @@
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                     Download STL
                 </button>
+                <p id="previewStatus" class="text-xs text-center text-slate-400 min-h-[1rem]">Ready to preview the marble route.</p>
             </div>
 
             <div class="mt-4 text-center text-xs text-slate-400">
@@ -105,12 +157,12 @@
             </div>
         </div>
 
-        <div class="absolute top-4 right-4 left-4 sm:left-auto pointer-events-auto flex justify-center sm:justify-end gap-3">
-            <div class="glass px-3 py-1.5 rounded-full flex items-center gap-2">
+        <div id="legendBadges" class="absolute top-4 right-4 left-4 sm:left-auto pointer-events-auto flex justify-center sm:justify-end gap-3">
+            <div id="startBadge" class="glass px-3 py-1.5 rounded-full flex items-center gap-2 transition-opacity">
                 <div class="w-2.5 h-2.5 rounded-full bg-white shadow-[0_0_5px_#fff]"></div>
                 <span class="text-xs font-semibold tracking-wide">START</span>
             </div>
-            <div class="glass px-3 py-1.5 rounded-full flex items-center gap-2">
+            <div id="goalBadge" class="glass px-3 py-1.5 rounded-full flex items-center gap-2 transition-opacity">
                 <div class="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_5px_#34d399]"></div>
                 <span class="text-xs font-semibold tracking-wide text-emerald-100">GOAL</span>
             </div>
@@ -142,11 +194,40 @@
         const INNER_RADIUS = SPEC.radius - SPEC.outerWall; // 19.0mm
         const RING_WIDTH = (INNER_RADIUS - SPEC.centerRadius) / (SPEC.rings - 1); 
 
+        const DIFFICULTY_CONFIG = {
+            easy: {
+                description: 'Adds extra openings and picks a shorter outer-ring goal.',
+                extraOpenings: 10,
+                goalStrategy: 'short'
+            },
+            standard: {
+                description: 'Balanced routes with the classic perfect-maze layout.',
+                extraOpenings: 0,
+                goalStrategy: 'random'
+            },
+            hard: {
+                description: 'Keeps the perfect maze and favors longer goal routes.',
+                extraOpenings: 0,
+                goalStrategy: 'long'
+            },
+            expert: {
+                description: 'Chooses one of the longest possible outer-ring routes.',
+                extraOpenings: 0,
+                goalStrategy: 'longest'
+            }
+        };
+
         // --- State ---
         let scene, camera, renderer, controls;
         let chipGroup, markersGroup, topMesh;
+        let startMarker, goalMarker, startLabel, goalLabel, solutionLine, previewBall;
+        let solutionCurve = null;
+        let solutionPathPoints = [];
+        let isPreviewing = false;
+        let previewStartedAt = 0;
         let nodes = [];
         let endCellIndex = 0;
+        const PREVIEW_DURATION_MS = 5200;
 
         // --- Initialization ---
         initApp();
@@ -209,11 +290,19 @@
             // 8. Bind UI
             document.getElementById('btnGenerate').addEventListener('click', generateChip);
             document.getElementById('btnDownload').addEventListener('click', downloadSTL);
+            document.getElementById('btnPreviewBall').addEventListener('click', startBallPreview);
+            document.getElementById('difficultySelect').addEventListener('change', () => {
+                updateDifficultyHint();
+                generateChip();
+            });
+            document.getElementById('markerMode').addEventListener('change', syncDisplayMode);
+            document.getElementById('toggleSolution').addEventListener('change', syncDisplayMode);
             document.getElementById('toggleTop').addEventListener('change', (e) => {
                 if(topMesh) topMesh.visible = e.target.checked;
             });
 
             // 9. Generate Initial Model & Start Loop
+            updateDifficultyHint();
             generateChip();
             animate();
         }
@@ -226,8 +315,144 @@
 
         function animate() {
             requestAnimationFrame(animate);
+            updateBallPreview();
             controls.update();
             renderer.render(scene, camera);
+        }
+
+        function getCurrentDifficulty() {
+            const selected = document.getElementById('difficultySelect').value;
+            return DIFFICULTY_CONFIG[selected] || DIFFICULTY_CONFIG.standard;
+        }
+
+        function updateDifficultyHint() {
+            const hint = document.getElementById('difficultyHint');
+            if (hint) hint.textContent = getCurrentDifficulty().description;
+        }
+
+        function getNodeKey(node) {
+            return `${node.r}:${node.c}`;
+        }
+
+        function connectNodes(nodeA, nodeB) {
+            if (!nodeA.links.includes(nodeB)) nodeA.links.push(nodeB);
+            if (!nodeB.links.includes(nodeA)) nodeB.links.push(nodeA);
+        }
+
+        function getAdjacentNodes(r, c) {
+            const adjacent = [];
+            const cPrev = (c - 1 + SPEC.ringCounts[r]) % SPEC.ringCounts[r];
+            const cNext = (c + 1) % SPEC.ringCounts[r];
+
+            adjacent.push(nodes[r][cPrev], nodes[r][cNext]);
+
+            if (r > 1) {
+                const cInner = Math.floor(c * SPEC.ringCounts[r - 1] / SPEC.ringCounts[r]);
+                adjacent.push(nodes[r - 1][cInner]);
+            }
+
+            if (r < SPEC.rings - 1) {
+                const ratio = SPEC.ringCounts[r + 1] / SPEC.ringCounts[r];
+                for (let i = 0; i < ratio; i++) {
+                    adjacent.push(nodes[r + 1][c * ratio + i]);
+                }
+            }
+
+            return adjacent;
+        }
+
+        function getPathToEndCell(endIndex) {
+            const startNode = nodes[1][0];
+            const endNode = nodes[SPEC.rings - 1][endIndex];
+            const queue = [startNode];
+            const visited = new Set([getNodeKey(startNode)]);
+            const parents = new Map();
+
+            while (queue.length > 0) {
+                const current = queue.shift();
+                if (current === endNode) break;
+
+                current.links.forEach(next => {
+                    const key = getNodeKey(next);
+                    if (visited.has(key)) return;
+
+                    visited.add(key);
+                    parents.set(key, current);
+                    queue.push(next);
+                });
+            }
+
+            const path = [];
+            let current = endNode;
+
+            while (current) {
+                path.push(current);
+                if (current === startNode) break;
+                current = parents.get(getNodeKey(current));
+            }
+
+            return path.reverse();
+        }
+
+        function addExtraOpenings(count) {
+            const blockedPairs = [];
+            const seen = new Set();
+
+            for (let r = 1; r < SPEC.rings; r++) {
+                for (let c = 0; c < SPEC.ringCounts[r]; c++) {
+                    const current = nodes[r][c];
+                    getAdjacentNodes(r, c).forEach(next => {
+                        if (current.links.includes(next)) return;
+
+                        const key = [getNodeKey(current), getNodeKey(next)].sort().join('|');
+                        if (seen.has(key)) return;
+
+                        seen.add(key);
+                        blockedPairs.push([current, next]);
+                    });
+                }
+            }
+
+            for (let i = 0; i < count && blockedPairs.length > 0; i++) {
+                const index = Math.floor(Math.random() * blockedPairs.length);
+                const [nodeA, nodeB] = blockedPairs.splice(index, 1)[0];
+                connectNodes(nodeA, nodeB);
+            }
+        }
+
+        function chooseEndCellByDifficulty() {
+            const difficulty = getCurrentDifficulty();
+            const outerCount = SPEC.ringCounts[SPEC.rings - 1];
+            const candidates = [];
+
+            for (let c = 0; c < outerCount; c++) {
+                candidates.push({ index: c, pathLength: getPathToEndCell(c).length });
+            }
+
+            if (difficulty.goalStrategy === 'random') {
+                endCellIndex = Math.floor(Math.random() * outerCount);
+                return;
+            }
+
+            candidates.sort((a, b) => a.pathLength - b.pathLength);
+
+            if (difficulty.goalStrategy === 'short') {
+                const poolSize = Math.max(1, Math.ceil(candidates.length * 0.35));
+                endCellIndex = candidates[Math.floor(Math.random() * poolSize)].index;
+                return;
+            }
+
+            if (difficulty.goalStrategy === 'long') {
+                const poolSize = Math.max(1, Math.ceil(candidates.length * 0.35));
+                const poolStart = Math.max(0, candidates.length - poolSize);
+                const pool = candidates.slice(poolStart);
+                endCellIndex = pool[Math.floor(Math.random() * pool.length)].index;
+                return;
+            }
+
+            const longest = candidates[candidates.length - 1].pathLength;
+            const pool = candidates.filter(candidate => candidate.pathLength >= longest - 1);
+            endCellIndex = pool[Math.floor(Math.random() * pool.length)].index;
         }
 
         // --- Logic: Maze Generation ---
@@ -241,25 +466,7 @@
             }
 
             const getUnvisitedNeighbors = (r, c) => {
-                const n = [];
-                const cPrev = (c - 1 + SPEC.ringCounts[r]) % SPEC.ringCounts[r];
-                const cNext = (c + 1) % SPEC.ringCounts[r];
-                if (!nodes[r][cPrev].visited) n.push(nodes[r][cPrev]);
-                if (!nodes[r][cNext].visited) n.push(nodes[r][cNext]);
-
-                if (r > 1) {
-                    const cInner = Math.floor(c * SPEC.ringCounts[r-1] / SPEC.ringCounts[r]);
-                    if (!nodes[r-1][cInner].visited) n.push(nodes[r-1][cInner]);
-                }
-
-                if (r < SPEC.rings - 1) {
-                    const ratio = SPEC.ringCounts[r+1] / SPEC.ringCounts[r];
-                    for (let i = 0; i < ratio; i++) {
-                        const cOuter = c * ratio + i;
-                        if (!nodes[r+1][cOuter].visited) n.push(nodes[r+1][cOuter]);
-                    }
-                }
-                return n;
+                return getAdjacentNodes(r, c).filter(node => !node.visited);
             };
 
             const stack = [];
@@ -273,8 +480,7 @@
                 const unvisited = getUnvisitedNeighbors(current.r, current.c);
                 if (unvisited.length > 0) {
                     const next = unvisited[Math.floor(Math.random() * unvisited.length)];
-                    current.links.push(next);
-                    next.links.push(current);
+                    connectNodes(current, next);
                     next.visited = true;
                     stack.push(next);
                 } else {
@@ -282,8 +488,9 @@
                 }
             }
 
-            // Pick a random spot in the outermost ring for the goal
-            endCellIndex = Math.floor(Math.random() * SPEC.ringCounts[SPEC.rings-1]);
+            const difficulty = getCurrentDifficulty();
+            if (difficulty.extraOpenings > 0) addExtraOpenings(difficulty.extraOpenings);
+            chooseEndCellByDifficulty();
         }
 
         function areLinked(n1, n2) {
@@ -301,36 +508,7 @@
         }
 
         function getSolutionPath() {
-            const startNode = nodes[1][0];
-            const endNode = nodes[SPEC.rings - 1][endCellIndex];
-            const queue = [startNode];
-            const visited = new Set([`${startNode.r}:${startNode.c}`]);
-            const parents = new Map();
-
-            while (queue.length > 0) {
-                const current = queue.shift();
-                if (current === endNode) break;
-
-                current.links.forEach(next => {
-                    const key = `${next.r}:${next.c}`;
-                    if (visited.has(key)) return;
-
-                    visited.add(key);
-                    parents.set(key, current);
-                    queue.push(next);
-                });
-            }
-
-            const path = [];
-            let current = endNode;
-
-            while (current) {
-                path.push(current);
-                if (current === startNode) break;
-                current = parents.get(`${current.r}:${current.c}`);
-            }
-
-            return path.reverse();
+            return getPathToEndCell(endCellIndex);
         }
 
         // --- Logic: 3D Geometry ---
@@ -387,23 +565,137 @@
             return shape;
         }
 
+        function createLabelSprite(text, accentColor) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 96;
+            const context = canvas.getContext('2d');
+            const radius = 28;
+
+            context.fillStyle = 'rgba(15, 23, 42, 0.86)';
+            context.strokeStyle = accentColor;
+            context.lineWidth = 6;
+            context.beginPath();
+            context.moveTo(10 + radius, 12);
+            context.lineTo(246 - radius, 12);
+            context.quadraticCurveTo(246, 12, 246, 12 + radius);
+            context.lineTo(246, 84 - radius);
+            context.quadraticCurveTo(246, 84, 246 - radius, 84);
+            context.lineTo(10 + radius, 84);
+            context.quadraticCurveTo(10, 84, 10, 84 - radius);
+            context.lineTo(10, 12 + radius);
+            context.quadraticCurveTo(10, 12, 10 + radius, 12);
+            context.closePath();
+            context.fill();
+            context.stroke();
+
+            context.font = 'bold 34px Arial, sans-serif';
+            context.fillStyle = '#f8fafc';
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+            context.fillText(text, 128, 49);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
+            const sprite = new THREE.Sprite(material);
+            sprite.scale.set(6.6, 2.5, 1);
+            return sprite;
+        }
+
+        function syncDisplayMode() {
+            const mode = document.getElementById('markerMode').value;
+            const solutionToggle = document.getElementById('toggleSolution');
+            const hideHints = mode === 'hidden';
+
+            if (solutionToggle) solutionToggle.disabled = hideHints;
+            if (solutionLine) solutionLine.visible = solutionToggle.checked && !hideHints;
+
+            [startMarker, goalMarker].forEach(marker => {
+                if (marker) marker.visible = !hideHints;
+            });
+
+            [startLabel, goalLabel].forEach(label => {
+                if (label) label.visible = mode === 'labels';
+            });
+
+            const legend = document.getElementById('legendBadges');
+            if (legend) legend.classList.toggle('hidden', hideHints);
+
+            if (previewBall) previewBall.visible = isPreviewing;
+        }
+
+        function setPreviewStatus(message) {
+            const status = document.getElementById('previewStatus');
+            if (status) status.textContent = message;
+        }
+
+        function stopBallPreview(resetBall = true) {
+            isPreviewing = false;
+            if (previewBall && resetBall) previewBall.visible = false;
+        }
+
+        function startBallPreview() {
+            if (!solutionCurve || !previewBall) return;
+
+            controls.autoRotate = false;
+            isPreviewing = true;
+            previewStartedAt = performance.now();
+            previewBall.visible = true;
+            setPreviewStatus('Marble preview is rolling through the solution route...');
+        }
+
+        function updateBallPreview() {
+            if (!isPreviewing || !solutionCurve || !previewBall) return;
+
+            const elapsed = performance.now() - previewStartedAt;
+            const progress = Math.min(elapsed / PREVIEW_DURATION_MS, 1);
+            const eased = progress < 0.5
+                ? 2 * progress * progress
+                : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+            const point = solutionCurve.getPoint(eased);
+
+            previewBall.position.copy(point);
+            previewBall.position.y += 0.55;
+            previewBall.rotation.x += 0.08;
+            previewBall.rotation.z += 0.05;
+
+            if (progress >= 1) {
+                isPreviewing = false;
+                setPreviewStatus(`Preview complete: ${Math.max(0, solutionPathPoints.length - 1)} route steps.`);
+            }
+        }
+
         function clearGroup(group) {
             if (!group) return;
             group.traverse(child => {
-                if (child.isMesh) {
-                    child.geometry.dispose();
-                    if(child.material.dispose) child.material.dispose();
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) {
+                    const materials = Array.isArray(child.material) ? child.material : [child.material];
+                    materials.forEach(material => {
+                        if (material.map) material.map.dispose();
+                        if (material.dispose) material.dispose();
+                    });
                 }
             });
             scene.remove(group);
         }
 
         function generateChip() {
+            stopBallPreview(false);
             clearGroup(chipGroup);
             clearGroup(markersGroup);
 
             chipGroup = new THREE.Group();
             markersGroup = new THREE.Group();
+            startMarker = null;
+            goalMarker = null;
+            startLabel = null;
+            goalLabel = null;
+            solutionLine = null;
+            previewBall = null;
+            solutionCurve = null;
+            solutionPathPoints = [];
+
             generateMazeGraph();
 
             // Nice dark plastic material
@@ -523,14 +815,14 @@
             // 5. Setup Markers
             const ballGeo = new THREE.SphereGeometry(1.0, 16, 16);
             const ballMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.8 });
-            const startMarker = new THREE.Mesh(ballGeo, ballMat);
+            startMarker = new THREE.Mesh(ballGeo, ballMat);
             // Update placement to center vertically in the taller maze space.
             startMarker.position.set(0, NEW_SHELL_HEIGHT + NEW_MAZE_HEIGHT / 2, 0); 
             markersGroup.add(startMarker);
 
             const goalGeo = new THREE.CylinderGeometry(1.4, 1.4, 0.4, 16);
             const goalMat = new THREE.MeshStandardMaterial({ color: 0x34d399, emissive: 0x059669 });
-            const goalMarker = new THREE.Mesh(goalGeo, goalMat);
+            goalMarker = new THREE.Mesh(goalGeo, goalMat);
             
             const endAngle = (endCellIndex + 0.5) * 2 * Math.PI / SPEC.ringCounts[SPEC.rings-1];
             const endR = SPEC.centerRadius + (SPEC.rings - 1.5) * RING_WIDTH;
@@ -541,18 +833,45 @@
             );
             markersGroup.add(goalMarker);
 
+            startLabel = createLabelSprite('START', '#ffffff');
+            startLabel.position.set(0, NEW_SHELL_HEIGHT + NEW_MAZE_HEIGHT + 2.1, 0);
+            markersGroup.add(startLabel);
+
+            goalLabel = createLabelSprite('GOAL', '#34d399');
+            goalLabel.position.set(
+                goalMarker.position.x,
+                NEW_SHELL_HEIGHT + NEW_MAZE_HEIGHT + 2.1,
+                goalMarker.position.z
+            );
+            markersGroup.add(goalLabel);
+
             const lineY = NEW_SHELL_HEIGHT + NEW_MAZE_HEIGHT + 0.18;
-            const solutionPoints = [
+            solutionPathPoints = [
                 new THREE.Vector3(0, lineY, 0),
                 ...getSolutionPath().map(node => getCellCenterPosition(node, lineY))
             ];
-            const solutionCurve = new THREE.CatmullRomCurve3(solutionPoints);
-            const solutionGeo = new THREE.TubeGeometry(solutionCurve, Math.max(8, solutionPoints.length * 4), 0.16, 8, false);
+            solutionCurve = new THREE.CatmullRomCurve3(solutionPathPoints);
+            const solutionGeo = new THREE.TubeGeometry(solutionCurve, Math.max(8, solutionPathPoints.length * 4), 0.16, 8, false);
             const solutionMat = new THREE.MeshBasicMaterial({ color: 0x22d3ee });
-            const solutionLine = new THREE.Mesh(solutionGeo, solutionMat);
+            solutionLine = new THREE.Mesh(solutionGeo, solutionMat);
             markersGroup.add(solutionLine);
 
+            const previewGeo = new THREE.SphereGeometry(0.75, 24, 24);
+            const previewMat = new THREE.MeshStandardMaterial({
+                color: 0xfacc15,
+                emissive: 0x854d0e,
+                roughness: 0.18,
+                metalness: 0.55
+            });
+            previewBall = new THREE.Mesh(previewGeo, previewMat);
+            previewBall.visible = false;
+            previewBall.position.copy(solutionPathPoints[0]);
+            previewBall.position.y += 0.55;
+            markersGroup.add(previewBall);
+
             scene.add(markersGroup);
+            syncDisplayMode();
+            setPreviewStatus(`Ready: ${Math.max(0, solutionPathPoints.length - 1)} route steps on this maze.`);
         }
 
         // --- Custom Robust Manual 3MF Exporter ---
