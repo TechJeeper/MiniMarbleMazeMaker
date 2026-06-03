@@ -85,14 +85,6 @@
                 </div>
             </div>
 
-            <div class="flex flex-col gap-2">
-                <label for="mazeStyle" class="text-sm font-medium text-slate-300">Maze Style</label>
-                <select id="mazeStyle" class="w-full rounded-xl border border-slate-600 bg-slate-800/80 px-3 py-2.5 text-sm font-semibold text-white shadow-lg outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/30">
-                    <option value="straight">Straight Walls</option>
-                    <option value="circle">Circle Maze</option>
-                </select>
-            </div>
-
             <div class="flex flex-col gap-3 mt-2">
                 <button id="btnGenerate" class="w-full py-3.5 px-4 bg-slate-700/80 hover:bg-slate-600 active:bg-slate-500 text-white font-semibold rounded-xl transition shadow-lg flex items-center justify-center gap-2 border border-slate-600">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
@@ -155,10 +147,6 @@
         let chipGroup, markersGroup, topMesh;
         let nodes = [];
         let endCellIndex = 0;
-        const MAZE_STYLE = {
-            straight: 'straight',
-            circle: 'circle'
-        };
 
         // --- Initialization ---
         initApp();
@@ -221,7 +209,6 @@
             // 8. Bind UI
             document.getElementById('btnGenerate').addEventListener('click', generateChip);
             document.getElementById('btnDownload').addEventListener('click', downloadSTL);
-            document.getElementById('mazeStyle').addEventListener('change', generateChip);
             document.getElementById('toggleTop').addEventListener('change', (e) => {
                 if(topMesh) topMesh.visible = e.target.checked;
             });
@@ -303,10 +290,6 @@
             return n1.links.includes(n2);
         }
 
-        function getMazeStyle() {
-            return document.getElementById('mazeStyle').value;
-        }
-
         // --- Logic: 3D Geometry ---
         function createRadialWall(theta, rIn, rOut, w) {
             const shape = new THREE.Shape();
@@ -372,83 +355,6 @@
             scene.remove(group);
         }
 
-        function createStraightMazeShapes() {
-            const mazeShapes = [];
-
-            // Inner barrier (leave cell 0 open)
-            for (let c = 1; c < SPEC.ringCounts[1]; c++) {
-                const t1 = c * 2 * Math.PI / SPEC.ringCounts[1];
-                const t2 = (c+1) * 2 * Math.PI / SPEC.ringCounts[1];
-                mazeShapes.push(createArcWall(SPEC.centerRadius, t1, t2, SPEC.wallWidth));
-            }
-
-            for (let r = 1; r < SPEC.rings; r++) {
-                for (let c = 0; c < SPEC.ringCounts[r]; c++) {
-                    const nextC = (c + 1) % SPEC.ringCounts[r];
-
-                    // Radial lines blocking movement
-                    if (!areLinked(nodes[r][c], nodes[r][nextC])) {
-                        const theta = (c + 1) * 2 * Math.PI / SPEC.ringCounts[r];
-                        const rIn = SPEC.centerRadius + (r - 1) * RING_WIDTH;
-                        const rOut = SPEC.centerRadius + r * RING_WIDTH;
-                        mazeShapes.push(createRadialWall(theta, rIn, rOut, SPEC.wallWidth));
-                    }
-
-                    // Arc lines blocking movement
-                    if (r < SPEC.rings - 1) {
-                        const ratio = SPEC.ringCounts[r+1] / SPEC.ringCounts[r];
-                        for (let i = 0; i < ratio; i++) {
-                            const cOuter = c * ratio + i;
-                            if (!areLinked(nodes[r][c], nodes[r+1][cOuter])) {
-                                const t1 = cOuter * 2 * Math.PI / SPEC.ringCounts[r+1];
-                                const t2 = (cOuter + 1) * 2 * Math.PI / SPEC.ringCounts[r+1];
-                                const arcR = SPEC.centerRadius + r * RING_WIDTH;
-                                mazeShapes.push(createArcWall(arcR, t1, t2, SPEC.wallWidth));
-                            }
-                        }
-                    }
-                }
-            }
-
-            return mazeShapes;
-        }
-
-        function createCircleMazeShapes() {
-            const mazeShapes = [];
-
-            // Circle mode emphasizes concentric maze lanes. The graph still picks
-            // randomized gate openings, while radial lane blockers are omitted.
-            for (let c = 1; c < SPEC.ringCounts[1]; c++) {
-                const t1 = c * 2 * Math.PI / SPEC.ringCounts[1];
-                const t2 = (c+1) * 2 * Math.PI / SPEC.ringCounts[1];
-                mazeShapes.push(createArcWall(SPEC.centerRadius, t1, t2, SPEC.wallWidth));
-            }
-
-            for (let r = 1; r < SPEC.rings - 1; r++) {
-                const ratio = SPEC.ringCounts[r+1] / SPEC.ringCounts[r];
-                const arcR = SPEC.centerRadius + r * RING_WIDTH;
-
-                for (let c = 0; c < SPEC.ringCounts[r]; c++) {
-                    for (let i = 0; i < ratio; i++) {
-                        const cOuter = c * ratio + i;
-                        if (!areLinked(nodes[r][c], nodes[r+1][cOuter])) {
-                            const t1 = cOuter * 2 * Math.PI / SPEC.ringCounts[r+1];
-                            const t2 = (cOuter + 1) * 2 * Math.PI / SPEC.ringCounts[r+1];
-                            mazeShapes.push(createArcWall(arcR, t1, t2, SPEC.wallWidth));
-                        }
-                    }
-                }
-            }
-
-            return mazeShapes;
-        }
-
-        function createMazeShapes() {
-            return getMazeStyle() === MAZE_STYLE.circle
-                ? createCircleMazeShapes()
-                : createStraightMazeShapes();
-        }
-
         function generateChip() {
             clearGroup(chipGroup);
             clearGroup(markersGroup);
@@ -504,7 +410,42 @@
             chipGroup.add(rimMesh);
 
             // 3. Build Maze Geometry
-            const mazeShapes = createMazeShapes();
+            const mazeShapes = [];
+            
+            // Inner barrier (leave cell 0 open)
+            for (let c = 1; c < SPEC.ringCounts[1]; c++) {
+                const t1 = c * 2 * Math.PI / SPEC.ringCounts[1];
+                const t2 = (c+1) * 2 * Math.PI / SPEC.ringCounts[1];
+                mazeShapes.push(createArcWall(SPEC.centerRadius, t1, t2, SPEC.wallWidth));
+            }
+
+            for (let r = 1; r < SPEC.rings; r++) {
+                for (let c = 0; c < SPEC.ringCounts[r]; c++) {
+                    const nextC = (c + 1) % SPEC.ringCounts[r];
+                    
+                    // Radial lines blocking movement
+                    if (!areLinked(nodes[r][c], nodes[r][nextC])) {
+                        const theta = (c + 1) * 2 * Math.PI / SPEC.ringCounts[r];
+                        const rIn = SPEC.centerRadius + (r - 1) * RING_WIDTH;
+                        const rOut = SPEC.centerRadius + r * RING_WIDTH;
+                        mazeShapes.push(createRadialWall(theta, rIn, rOut, SPEC.wallWidth));
+                    }
+
+                    // Arc lines blocking movement
+                    if (r < SPEC.rings - 1) {
+                        const ratio = SPEC.ringCounts[r+1] / SPEC.ringCounts[r];
+                        for (let i = 0; i < ratio; i++) {
+                            const cOuter = c * ratio + i;
+                            if (!areLinked(nodes[r][c], nodes[r+1][cOuter])) {
+                                const t1 = cOuter * 2 * Math.PI / SPEC.ringCounts[r+1];
+                                const t2 = (cOuter + 1) * 2 * Math.PI / SPEC.ringCounts[r+1];
+                                const arcR = SPEC.centerRadius + r * RING_WIDTH;
+                                mazeShapes.push(createArcWall(arcR, t1, t2, SPEC.wallWidth));
+                            }
+                        }
+                    }
+                }
+            }
 
             if (mazeShapes.length > 0) {
                 // Slicer Glitch Fix: Extruding everything as one geometry causes self-intersecting 
