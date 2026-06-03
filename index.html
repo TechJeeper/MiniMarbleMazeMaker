@@ -290,6 +290,49 @@
             return n1.links.includes(n2);
         }
 
+        function getCellCenterPosition(node, y) {
+            const angle = (node.c + 0.5) * 2 * Math.PI / SPEC.ringCounts[node.r];
+            const radius = SPEC.centerRadius + (node.r - 0.5) * RING_WIDTH;
+            return new THREE.Vector3(
+                radius * Math.cos(angle),
+                y,
+                -radius * Math.sin(angle)
+            );
+        }
+
+        function getSolutionPath() {
+            const startNode = nodes[1][0];
+            const endNode = nodes[SPEC.rings - 1][endCellIndex];
+            const queue = [startNode];
+            const visited = new Set([`${startNode.r}:${startNode.c}`]);
+            const parents = new Map();
+
+            while (queue.length > 0) {
+                const current = queue.shift();
+                if (current === endNode) break;
+
+                current.links.forEach(next => {
+                    const key = `${next.r}:${next.c}`;
+                    if (visited.has(key)) return;
+
+                    visited.add(key);
+                    parents.set(key, current);
+                    queue.push(next);
+                });
+            }
+
+            const path = [];
+            let current = endNode;
+
+            while (current) {
+                path.push(current);
+                if (current === startNode) break;
+                current = parents.get(`${current.r}:${current.c}`);
+            }
+
+            return path.reverse();
+        }
+
         // --- Logic: 3D Geometry ---
         function createRadialWall(theta, rIn, rOut, w) {
             const shape = new THREE.Shape();
@@ -497,6 +540,17 @@
                 -endR * Math.sin(endAngle)
             );
             markersGroup.add(goalMarker);
+
+            const lineY = NEW_SHELL_HEIGHT + NEW_MAZE_HEIGHT + 0.18;
+            const solutionPoints = [
+                new THREE.Vector3(0, lineY, 0),
+                ...getSolutionPath().map(node => getCellCenterPosition(node, lineY))
+            ];
+            const solutionCurve = new THREE.CatmullRomCurve3(solutionPoints);
+            const solutionGeo = new THREE.TubeGeometry(solutionCurve, Math.max(8, solutionPoints.length * 4), 0.16, 8, false);
+            const solutionMat = new THREE.MeshBasicMaterial({ color: 0x22d3ee });
+            const solutionLine = new THREE.Mesh(solutionGeo, solutionMat);
+            markersGroup.add(solutionLine);
 
             scene.add(markersGroup);
         }
