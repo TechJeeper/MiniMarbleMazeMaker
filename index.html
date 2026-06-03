@@ -291,13 +291,57 @@
         }
 
         function getCellCenterPosition(node, y) {
-            const angle = (node.c + 0.5) * 2 * Math.PI / SPEC.ringCounts[node.r];
-            const radius = SPEC.centerRadius + (node.r - 0.5) * RING_WIDTH;
+            const angle = getCellCenterAngle(node);
+            const radius = getCellCenterRadius(node);
+            return getPolarPosition(radius, angle, y);
+        }
+
+        function getCellCenterAngle(node) {
+            return (node.c + 0.5) * 2 * Math.PI / SPEC.ringCounts[node.r];
+        }
+
+        function getCellCenterRadius(node) {
+            return SPEC.centerRadius + (node.r - 0.5) * RING_WIDTH;
+        }
+
+        function getPolarPosition(radius, angle, y) {
             return new THREE.Vector3(
                 radius * Math.cos(angle),
                 y,
                 -radius * Math.sin(angle)
             );
+        }
+
+        function getShortestAngleDelta(fromAngle, toAngle) {
+            return Math.atan2(Math.sin(toAngle - fromAngle), Math.cos(toAngle - fromAngle));
+        }
+
+        function appendArcPoints(points, radius, fromAngle, toAngle, y) {
+            const delta = getShortestAngleDelta(fromAngle, toAngle);
+            const steps = Math.max(1, Math.ceil(Math.abs(delta) / (Math.PI / 48)));
+
+            for (let i = 1; i <= steps; i++) {
+                points.push(getPolarPosition(radius, fromAngle + delta * (i / steps), y));
+            }
+        }
+
+        function appendPathBetweenCells(points, fromNode, toNode, y) {
+            const fromRadius = getCellCenterRadius(fromNode);
+            const toRadius = getCellCenterRadius(toNode);
+            const fromAngle = getCellCenterAngle(fromNode);
+            const toAngle = getCellCenterAngle(toNode);
+
+            if (fromNode.r === toNode.r) {
+                appendArcPoints(points, fromRadius, fromAngle, toAngle, y);
+                return;
+            }
+
+            const outerNode = fromNode.r > toNode.r ? fromNode : toNode;
+            const passageAngle = getCellCenterAngle(outerNode);
+
+            appendArcPoints(points, fromRadius, fromAngle, passageAngle, y);
+            points.push(getPolarPosition(toRadius, passageAngle, y));
+            appendArcPoints(points, toRadius, passageAngle, toAngle, y);
         }
 
         function getSolutionPath() {
@@ -331,6 +375,30 @@
             }
 
             return path.reverse();
+        }
+
+        function getSolutionLinePoints(y) {
+            const path = getSolutionPath();
+            const points = [new THREE.Vector3(0, y, 0)];
+
+            if (path.length === 0) return points;
+
+            points.push(getCellCenterPosition(path[0], y));
+            for (let i = 1; i < path.length; i++) {
+                appendPathBetweenCells(points, path[i - 1], path[i], y);
+            }
+
+            return points;
+        }
+
+        function createPolylineTubeGeometry(points, radius) {
+            const path = new THREE.CurvePath();
+
+            for (let i = 1; i < points.length; i++) {
+                path.add(new THREE.LineCurve3(points[i - 1], points[i]));
+            }
+
+            return new THREE.TubeGeometry(path, Math.max(12, points.length * 2), radius, 8, false);
         }
 
         // --- Logic: 3D Geometry ---
@@ -542,12 +610,8 @@
             markersGroup.add(goalMarker);
 
             const lineY = NEW_SHELL_HEIGHT + NEW_MAZE_HEIGHT + 0.18;
-            const solutionPoints = [
-                new THREE.Vector3(0, lineY, 0),
-                ...getSolutionPath().map(node => getCellCenterPosition(node, lineY))
-            ];
-            const solutionCurve = new THREE.CatmullRomCurve3(solutionPoints);
-            const solutionGeo = new THREE.TubeGeometry(solutionCurve, Math.max(8, solutionPoints.length * 4), 0.16, 8, false);
+            const solutionPoints = getSolutionLinePoints(lineY);
+            const solutionGeo = createPolylineTubeGeometry(solutionPoints, 0.16);
             const solutionMat = new THREE.MeshBasicMaterial({ color: 0x22d3ee });
             const solutionLine = new THREE.Mesh(solutionGeo, solutionMat);
             markersGroup.add(solutionLine);
