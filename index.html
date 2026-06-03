@@ -391,14 +391,33 @@
             return points;
         }
 
-        function createPolylineTubeGeometry(points, radius) {
-            const path = new THREE.CurvePath();
+        function createPathTube(points, radius, material) {
+            const tubeGroup = new THREE.Group();
+            const up = new THREE.Vector3(0, 1, 0);
+            const jointGeo = new THREE.SphereGeometry(radius, 8, 8);
 
             for (let i = 1; i < points.length; i++) {
-                path.add(new THREE.LineCurve3(points[i - 1], points[i]));
+                const start = points[i - 1];
+                const end = points[i];
+                const direction = new THREE.Vector3().subVectors(end, start);
+                const length = direction.length();
+
+                if (length < 0.001) continue;
+
+                const segmentGeo = new THREE.CylinderGeometry(radius, radius, length, 8);
+                const segment = new THREE.Mesh(segmentGeo, material);
+                segment.position.copy(start).add(end).multiplyScalar(0.5);
+                segment.quaternion.setFromUnitVectors(up, direction.normalize());
+                tubeGroup.add(segment);
             }
 
-            return new THREE.TubeGeometry(path, Math.max(12, points.length * 2), radius, 8, false);
+            points.forEach(point => {
+                const joint = new THREE.Mesh(jointGeo.clone(), material);
+                joint.position.copy(point);
+                tubeGroup.add(joint);
+            });
+
+            return tubeGroup;
         }
 
         // --- Logic: 3D Geometry ---
@@ -611,9 +630,8 @@
 
             const lineY = NEW_SHELL_HEIGHT + NEW_MAZE_HEIGHT + 0.18;
             const solutionPoints = getSolutionLinePoints(lineY);
-            const solutionGeo = createPolylineTubeGeometry(solutionPoints, 0.16);
             const solutionMat = new THREE.MeshBasicMaterial({ color: 0x22d3ee });
-            const solutionLine = new THREE.Mesh(solutionGeo, solutionMat);
+            const solutionLine = createPathTube(solutionPoints, 0.12, solutionMat);
             markersGroup.add(solutionLine);
 
             scene.add(markersGroup);
