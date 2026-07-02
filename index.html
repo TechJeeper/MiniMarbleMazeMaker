@@ -85,16 +85,24 @@
             
             <div>
                 <h1 class="text-2xl font-black bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">MiniMarbleMaze<br>Maker</h1>
-                <p class="text-xs text-slate-400 mt-1">40x3.25mm Print-in-Place Maze</p>
+                <p id="sizeTitle" class="text-xs text-slate-400 mt-1">40x3.25mm Print-in-Place Maze</p>
             </div>
 
             <div class="bg-blue-900/30 border border-blue-500/30 rounded-xl p-3">
-                <p class="text-xs text-blue-200 leading-relaxed">
+                <p id="proTipText" class="text-xs text-blue-200 leading-relaxed">
                     <strong class="text-blue-400">Pro-Tip:</strong> Slice at <strong>0.2mm layer height</strong>. Use clear filament for layers 1 &amp; 2. Set a pause at layer 15, drop in a <strong><a href="https://amzn.to/4uJ1VLD" target="_blank" class="underline">1.5mm steel ball</a></strong>, then resume!
                 </p>
             </div>
 
             <div class="flex flex-col gap-4">
+                <div>
+                    <label for="sizeSelect" class="text-sm font-medium text-slate-300">Maze Size</label>
+                    <select id="sizeSelect" class="control-field mt-2 cursor-pointer">
+                        <option value="40mm" selected>40mm Makerchip</option>
+                        <option value="100mm">100mm Coaster</option>
+                    </select>
+                </div>
+
                 <div>
                     <label for="difficultySelect" class="text-sm font-medium text-slate-300">Maze Difficulty</label>
                     <select id="difficultySelect" class="control-field mt-2 cursor-pointer">
@@ -173,7 +181,7 @@
 
     <script>
         // --- Specifications ---
-        const SPEC = {
+        let SPEC = {
             radius: 20.0,
             thickness: 3.25,
             shell: 0.8, // Original shell height
@@ -184,16 +192,86 @@
             ringCounts: [1, 8, 16, 16, 32, 32]
         };
 
+        let VISUALS = {
+            startMarkerRadius: 1.0,
+            goalMarkerRadius: 1.4,
+            goalMarkerHeight: 0.4,
+            previewBallRadius: 0.75,
+            previewBallYOffset: 0.55,
+            solutionTubeRadius: 0.16,
+            labelScale: 6.6,
+            labelHeight: 2.5
+        };
+
         // --- Shell Height Adjustment ---
         // Reduce top/bottom shells by half (from 0.8mm to 0.4mm)
-        const NEW_SHELL_HEIGHT = SPEC.shell / 2; // 0.4mm
+        let NEW_SHELL_HEIGHT = SPEC.shell / 2; // 0.4mm
         
         // --- Recalculate Maze Height ---
         // The taller maze height is now calculated based on the thinner shells.
-        const NEW_MAZE_HEIGHT = SPEC.thickness - (2 * NEW_SHELL_HEIGHT); // 2.45mm
+        let NEW_MAZE_HEIGHT = SPEC.thickness - (2 * NEW_SHELL_HEIGHT); // 2.45mm
         
-        const INNER_RADIUS = SPEC.radius - SPEC.outerWall; // 19.0mm
-        const RING_WIDTH = (INNER_RADIUS - SPEC.centerRadius) / (SPEC.rings - 1); 
+        let INNER_RADIUS = SPEC.radius - SPEC.outerWall; // 19.0mm
+        let RING_WIDTH = (INNER_RADIUS - SPEC.centerRadius) / (SPEC.rings - 1);
+
+        function updateSizeConfig() {
+            const size = document.getElementById('sizeSelect').value;
+            const sizeTitle = document.getElementById('sizeTitle');
+            const proTipText = document.getElementById('proTipText');
+
+            if (size === '40mm') {
+                SPEC = {
+                    radius: 20.0,
+                    thickness: 3.25,
+                    shell: 0.8,
+                    outerWall: 1.0,
+                    wallWidth: 0.8,
+                    centerRadius: 4.0,
+                    rings: 6,
+                    ringCounts: [1, 8, 16, 16, 32, 32]
+                };
+                VISUALS = {
+                    startMarkerRadius: 1.0,
+                    goalMarkerRadius: 1.4,
+                    goalMarkerHeight: 0.4,
+                    previewBallRadius: 0.75,
+                    previewBallYOffset: 0.55,
+                    solutionTubeRadius: 0.16,
+                    labelScale: 6.6,
+                    labelHeight: 2.5
+                };
+                sizeTitle.innerHTML = '40x3.25mm Print-in-Place Maze';
+                proTipText.innerHTML = '<strong class="text-blue-400">Pro-Tip:</strong> Slice at <strong>0.2mm layer height</strong>. Use clear filament for layers 1 &amp; 2. Set a pause at layer 15, drop in a <strong><a href="https://amzn.to/4uJ1VLD" target="_blank" class="underline">1.5mm steel ball</a></strong>, then resume!';
+            } else if (size === '100mm') {
+                SPEC = {
+                    radius: 50.0,
+                    thickness: 8.2, // 3 layers top + 3 layers bottom (0.2mm layers) + 7mm for 6mm ball
+                    shell: 1.2, // 3 layers at 0.2mm = 0.6mm * 2 for top/bottom combined
+                    outerWall: 2.5,
+                    wallWidth: 2.0,
+                    centerRadius: 10.0,
+                    rings: 6,
+                    ringCounts: [1, 8, 16, 16, 32, 32]
+                };
+                VISUALS = {
+                    startMarkerRadius: 2.5,
+                    goalMarkerRadius: 3.5,
+                    goalMarkerHeight: 1.0,
+                    previewBallRadius: 3.0, // Visual size of a 6mm bearing
+                    previewBallYOffset: 2.5,
+                    solutionTubeRadius: 0.4,
+                    labelScale: 16.5,
+                    labelHeight: 6.25
+                };
+                sizeTitle.innerHTML = '100x8.2mm Print-in-Place Coaster';
+                proTipText.innerHTML = '<strong class="text-blue-400">Pro-Tip:</strong> Slice at <strong>0.2mm layer height</strong>. Use clear filament for layers 1 to 3. Set a pause at layer 39, drop in a <strong><a href="https://amzn.to/4wmdM2y" target="_blank" class="underline">6mm steel ball</a></strong>, then resume!';
+            }
+
+            NEW_SHELL_HEIGHT = SPEC.shell / 2;
+            NEW_MAZE_HEIGHT = SPEC.thickness - (2 * NEW_SHELL_HEIGHT);
+            INNER_RADIUS = SPEC.radius - SPEC.outerWall;
+            RING_WIDTH = (INNER_RADIUS - SPEC.centerRadius) / (SPEC.rings - 1);
+        }
 
         const DIFFICULTY_CONFIG = {
             easy: {
@@ -292,6 +370,16 @@
             document.getElementById('btnGenerate').addEventListener('click', generateChip);
             document.getElementById('btnDownload').addEventListener('click', downloadSTL);
             document.getElementById('btnPreviewBall').addEventListener('click', startBallPreview);
+
+            document.getElementById('sizeSelect').addEventListener('change', () => {
+                updateSizeConfig();
+                // Scale camera out for the coaster size
+                const dist = SPEC.radius === 50.0 ? 110 : 63;
+                camera.position.normalize().multiplyScalar(dist);
+                camera.updateProjectionMatrix();
+                generateChip();
+            });
+
             document.getElementById('difficultySelect').addEventListener('change', () => {
                 updateDifficultyHint();
                 generateChip();
@@ -303,6 +391,7 @@
             });
 
             // 9. Generate Initial Model & Start Loop
+            updateSizeConfig();
             updateDifficultyHint();
             generateChip();
             animate();
@@ -599,7 +688,7 @@
             const texture = new THREE.CanvasTexture(canvas);
             const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
             const sprite = new THREE.Sprite(material);
-            sprite.scale.set(6.6, 2.5, 1);
+            sprite.scale.set(VISUALS.labelScale, VISUALS.labelHeight, 1);
             return sprite;
         }
 
@@ -656,7 +745,7 @@
             const point = solutionCurve.getPoint(eased);
 
             previewBall.position.copy(point);
-            previewBall.position.y += 0.55;
+            previewBall.position.y += VISUALS.previewBallYOffset;
             previewBall.rotation.x += 0.08;
             previewBall.rotation.z += 0.05;
 
@@ -814,14 +903,14 @@
             scene.add(chipGroup);
 
             // 5. Setup Markers
-            const ballGeo = new THREE.SphereGeometry(1.0, 16, 16);
+            const ballGeo = new THREE.SphereGeometry(VISUALS.startMarkerRadius, 16, 16);
             const ballMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.8 });
             startMarker = new THREE.Mesh(ballGeo, ballMat);
             // Update placement to center vertically in the taller maze space.
             startMarker.position.set(0, NEW_SHELL_HEIGHT + NEW_MAZE_HEIGHT / 2, 0); 
             markersGroup.add(startMarker);
 
-            const goalGeo = new THREE.CylinderGeometry(1.4, 1.4, 0.4, 16);
+            const goalGeo = new THREE.CylinderGeometry(VISUALS.goalMarkerRadius, VISUALS.goalMarkerRadius, VISUALS.goalMarkerHeight, 16);
             const goalMat = new THREE.MeshStandardMaterial({ color: 0x34d399, emissive: 0x059669 });
             goalMarker = new THREE.Mesh(goalGeo, goalMat);
             
@@ -852,12 +941,12 @@
                 ...getSolutionPath().map(node => getCellCenterPosition(node, lineY))
             ];
             solutionCurve = new THREE.CatmullRomCurve3(solutionPathPoints);
-            const solutionGeo = new THREE.TubeGeometry(solutionCurve, Math.max(8, solutionPathPoints.length * 4), 0.16, 8, false);
+            const solutionGeo = new THREE.TubeGeometry(solutionCurve, Math.max(8, solutionPathPoints.length * 4), VISUALS.solutionTubeRadius, 8, false);
             const solutionMat = new THREE.MeshBasicMaterial({ color: 0x22d3ee });
             solutionLine = new THREE.Mesh(solutionGeo, solutionMat);
             markersGroup.add(solutionLine);
 
-            const previewGeo = new THREE.SphereGeometry(0.75, 24, 24);
+            const previewGeo = new THREE.SphereGeometry(VISUALS.previewBallRadius, 24, 24);
             const previewMat = new THREE.MeshStandardMaterial({
                 color: 0xfacc15,
                 emissive: 0x854d0e,
@@ -867,7 +956,7 @@
             previewBall = new THREE.Mesh(previewGeo, previewMat);
             previewBall.visible = false;
             previewBall.position.copy(solutionPathPoints[0]);
-            previewBall.position.y += 0.55;
+            previewBall.position.y += VISUALS.previewBallYOffset;
             markersGroup.add(previewBall);
 
             scene.add(markersGroup);
