@@ -132,6 +132,14 @@
                 </div>
             </div>
 
+            <div id="keychainToggleContainer" class="flex items-center justify-between">
+                <span class="text-sm font-medium text-slate-300">Add Keychain Loop</span>
+                <div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+                    <input type="checkbox" name="toggle" id="toggleKeychain" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer top-0 bottom-0 m-auto"/>
+                    <label for="toggleKeychain" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                </div>
+            </div>
+
             <div class="flex items-center justify-between">
                 <span class="text-sm font-medium text-slate-300">Show Solution Path</span>
                 <div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
@@ -218,8 +226,10 @@
             const size = document.getElementById('sizeSelect').value;
             const sizeTitle = document.getElementById('sizeTitle');
             const proTipText = document.getElementById('proTipText');
+            const keychainContainer = document.getElementById('keychainToggleContainer');
 
             if (size === '40mm') {
+                if (keychainContainer) keychainContainer.classList.remove('hidden');
                 SPEC = {
                     radius: 20.0,
                     thickness: 3.25,
@@ -265,6 +275,7 @@
                 };
                 sizeTitle.innerHTML = '100x8.2mm Print-in-Place Coaster';
                 proTipText.innerHTML = '<strong class="text-blue-400">Pro-Tip:</strong> Slice at <strong>0.2mm layer height</strong>. Use clear filament for layers 1 to 3. Set a pause at layer 39, drop in a <strong><a href="https://amzn.to/4wmdM2y" target="_blank" class="underline">6mm steel ball</a></strong>, then resume!';
+                if (keychainContainer) keychainContainer.classList.add('hidden');
             }
 
             NEW_SHELL_HEIGHT = SPEC.shell / 2;
@@ -389,6 +400,7 @@
             document.getElementById('toggleTop').addEventListener('change', (e) => {
                 if(topMesh) topMesh.visible = e.target.checked;
             });
+            document.getElementById('toggleKeychain').addEventListener('change', generateChip);
 
             // 9. Generate Initial Model & Start Loop
             updateSizeConfig();
@@ -899,6 +911,54 @@
             topMesh.receiveShadow = true;
             topMesh.visible = document.getElementById('toggleTop').checked;
             chipGroup.add(topMesh);
+
+            // 4.5 Keychain Loop
+            if (SPEC.radius === 20.0 && document.getElementById('toggleKeychain').checked) {
+                const keychainShape = new THREE.Shape();
+
+                // The main maze radius is 20. We want to start slightly inside to ensure intersection
+                // and draw a filleted loop that sticks out.
+
+                const startAngle = Math.PI / 2 - 0.4;
+                const endAngle = Math.PI / 2 + 0.4;
+                const innerR = 18;
+
+                const cx = 0;
+                const cy = 25;
+                const outerLoopRadius = 6;
+                const holeRadius = 2.5;
+
+                // Start on the circle
+                keychainShape.moveTo(innerR * Math.cos(startAngle), innerR * Math.sin(startAngle));
+
+                // Curve up to the right side of the top loop
+                keychainShape.quadraticCurveTo(
+                    11, 20, // Control point
+                    outerLoopRadius * Math.cos(-0.2) + cx, outerLoopRadius * Math.sin(-0.2) + cy
+                );
+
+                // Arc around the top
+                keychainShape.absarc(cx, cy, outerLoopRadius, -0.2, Math.PI + 0.2, false);
+
+                // Curve back down to the left side of the circle
+                keychainShape.quadraticCurveTo(
+                    -11, 20, // Control point
+                    innerR * Math.cos(endAngle), innerR * Math.sin(endAngle)
+                );
+
+                const keychainHole = new THREE.Path();
+                keychainHole.absarc(cx, cy, holeRadius, 0, Math.PI * 2, true);
+                keychainShape.holes.push(keychainHole);
+
+                const keychainExtrudeDepth = SPEC.thickness + SPEC.shell;
+                // The keychain needs to be flush with the bottom of the base
+                const keychainGeo = new THREE.ExtrudeGeometry(keychainShape, { depth: keychainExtrudeDepth, bevelEnabled: false, curveSegments: 32 });
+                keychainGeo.rotateX(-Math.PI / 2);
+                const keychainMesh = new THREE.Mesh(keychainGeo, material);
+                keychainMesh.receiveShadow = true;
+                keychainMesh.castShadow = true;
+                chipGroup.add(keychainMesh);
+            }
 
             scene.add(chipGroup);
 
