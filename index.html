@@ -6,6 +6,9 @@
     <meta name="description" content="Mini Marble Maze Maker - Generate custom 3D printable, print-in-place marble mazes easily from your browser.">
     <meta name="keywords" content="marble maze, 3D printing, print-in-place, maze generator, 3D printed maze, MiniMarbleMazeMaker, custom maze">
     <meta name="author" content="Mini Marble Maze Maker">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
@@ -1169,13 +1172,13 @@ ${trianglesList.join('\n')}
             link.style.display = 'none';
             link.href = url;
 
-            const words1 = ["Happy", "Super", "Fast", "Brave", "Clever", "Shiny", "Cosmic", "Wild", "Magic", "Epic"];
-            const words2 = ["Cat", "Marble", "Roller", "Maze", "Runner", "Quest", "Journey", "Puzzle", "Path", "Dash"];
+            const words1 = ["Cosmic", "Stellar", "Lunar", "Solar", "Astro", "Galactic", "Nebula", "Orbital", "Meteor", "Comet", "Pulsar", "Quasar", "Nova", "Zenith", "Void", "Celestial", "Eclipse", "Gravity", "Orion", "Apollo"];
+            const words2 = ["Maze", "Labyrinth", "Puzzle", "Path", "Quest", "Journey", "Route", "Track", "Enigma", "Riddle", "Circuit", "Network", "Tangle", "Web", "Grid", "Matrix", "Trail", "Passage", "Corridor", "Wander"];
             const word1 = words1[Math.floor(Math.random() * words1.length)];
             const word2 = words2[Math.floor(Math.random() * words2.length)];
             const size = document.getElementById('sizeSelect').value;
 
-            link.download = `MiniMarbleMaze-${size}mm-${word1}${word2}.stl`;
+            link.download = `MiniMarbleMaze-${size}-${word1}${word2}.stl`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
