@@ -636,8 +636,8 @@
             const tanX = -dirY, tanY = dirX;
 
             // Extend radial walls deeply to guarantee union overlap in Slicer CSG
-            const rInAdj = rIn - w/2 - 0.1;
-            const rOutAdj = rOut + w/2 + 0.1;
+            const rInAdj = rIn - 0.1;
+            const rOutAdj = rOut + 0.1;
 
             // Coordinates are plotted strictly CCW to prevent flipped normal vectors.
             // Bottom-Right
@@ -668,7 +668,7 @@
             const rInner = R - w/2;
             
             // Add a tiny angular overlap so arc walls solidly fuse with adjacent walls
-            const overlap = 0.02; 
+            const overlap = 0.1 / R;
             const t1 = theta1 - overlap;
             const t2 = theta2 + overlap;
 
@@ -1168,7 +1168,14 @@ ${trianglesList.join('\n')}
             const link = document.createElement('a');
             link.style.display = 'none';
             link.href = url;
-            link.download = 'MiniMarbleMaze.stl';
+
+            const words1 = ["Happy", "Super", "Fast", "Brave", "Clever", "Shiny", "Cosmic", "Wild", "Magic", "Epic"];
+            const words2 = ["Cat", "Marble", "Roller", "Maze", "Runner", "Quest", "Journey", "Puzzle", "Path", "Dash"];
+            const word1 = words1[Math.floor(Math.random() * words1.length)];
+            const word2 = words2[Math.floor(Math.random() * words2.length)];
+            const size = document.getElementById('sizeSelect').value;
+
+            link.download = `MiniMarbleMaze-${size}mm-${word1}${word2}.stl`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
