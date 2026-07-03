@@ -115,8 +115,9 @@
                 <div>
                     <label for="sizeSelect" class="text-sm font-medium text-slate-300">Maze Size</label>
                     <select id="sizeSelect" class="control-field mt-2 cursor-pointer">
-                        <option value="40mm" selected>40mm Makerchip</option>
-                        <option value="100mm">100mm Coaster</option>
+                        <option value="40mm" selected>Small (MakerChip)</option>
+                        <option value="100mm">Medium</option>
+                        <option value="150mm">Large</option>
                     </select>
                 </div>
 
@@ -267,18 +268,43 @@
                     labelScale: 6.6,
                     labelHeight: 2.5
                 };
-                sizeTitle.innerHTML = '40x3.25mm Print-in-Place Maze';
+                sizeTitle.innerHTML = 'Small (MakerChip) 40x3.25mm Print-in-Place Maze';
                 proTipText.innerHTML = '<strong class="text-blue-400">Pro-Tip:</strong> Slice at <strong>0.2mm layer height</strong>. Use clear filament for layers 1 &amp; 2. Set a pause at layer 15, drop in a <strong><a href="https://amzn.to/4uJ1VLD" target="_blank" class="underline">1.5mm steel ball</a></strong>, then resume!';
             } else if (size === '100mm') {
+                if (keychainContainer) keychainContainer.classList.add('hidden');
                 SPEC = {
                     radius: 50.0,
-                    thickness: 8.2, // 3 layers top + 3 layers bottom (0.2mm layers) + 7mm for 6mm ball
+                    thickness: 5.2, // 3 layers top + 3 layers bottom (0.2mm layers) + 4mm for 3mm ball
                     shell: 1.2, // 3 layers at 0.2mm = 0.6mm * 2 for top/bottom combined
+                    outerWall: 1.2,
+                    wallWidth: 1.2,
+                    centerRadius: 8.0,
+                    rings: 9,
+                    ringCounts: [1, 6, 12, 12, 24, 24, 48, 48, 48]
+                };
+                VISUALS = {
+                    startMarkerRadius: 1.5,
+                    goalMarkerRadius: 2.0,
+                    goalMarkerHeight: 0.8,
+                    previewBallRadius: 1.5, // Visual size of a 3mm bearing
+                    previewBallYOffset: 1.5,
+                    solutionTubeRadius: 0.25,
+                    labelScale: 10.0,
+                    labelHeight: 4.0
+                };
+                sizeTitle.innerHTML = 'Medium 100x5.2mm Print-in-Place Maze';
+                proTipText.innerHTML = '<strong class="text-blue-400">Pro-Tip:</strong> Slice at <strong>0.2mm layer height</strong>. Use clear filament for layers 1 to 3. Set a pause at layer 24, drop in a <strong><a href="https://amzn.to/3vT2u5b" target="_blank" class="underline">3mm steel ball</a></strong>, then resume!';
+            } else if (size === '150mm') {
+                if (keychainContainer) keychainContainer.classList.add('hidden');
+                SPEC = {
+                    radius: 75.0,
+                    thickness: 8.2, // 3 layers top + 3 layers bottom (0.2mm layers) + 7mm for 6mm ball
+                    shell: 1.2,
                     outerWall: 2.0,
                     wallWidth: 2.0,
-                    centerRadius: 8.0,
-                    rings: 5,
-                    ringCounts: [1, 5, 10, 10, 20]
+                    centerRadius: 10.0,
+                    rings: 8,
+                    ringCounts: [1, 8, 16, 16, 32, 32, 64, 64]
                 };
                 VISUALS = {
                     startMarkerRadius: 2.5,
@@ -290,9 +316,8 @@
                     labelScale: 16.5,
                     labelHeight: 6.25
                 };
-                sizeTitle.innerHTML = '100x8.2mm Print-in-Place Coaster';
+                sizeTitle.innerHTML = 'Large 150x8.2mm Print-in-Place Maze';
                 proTipText.innerHTML = '<strong class="text-blue-400">Pro-Tip:</strong> Slice at <strong>0.2mm layer height</strong>. Use clear filament for layers 1 to 3. Set a pause at layer 39, drop in a <strong><a href="https://amzn.to/4wmdM2y" target="_blank" class="underline">6mm steel ball</a></strong>, then resume!';
-                if (keychainContainer) keychainContainer.classList.add('hidden');
             }
 
             NEW_SHELL_HEIGHT = SPEC.shell / 2;
@@ -401,8 +426,10 @@
 
             document.getElementById('sizeSelect').addEventListener('change', () => {
                 updateSizeConfig();
-                // Scale camera out for the coaster size
-                const dist = SPEC.radius === 50.0 ? 110 : 63;
+                // Scale camera out for the chosen size
+                let dist = 63;
+                if (SPEC.radius === 50.0) dist = 110;
+                else if (SPEC.radius === 75.0) dist = 160;
                 camera.position.normalize().multiplyScalar(dist);
                 camera.updateProjectionMatrix();
                 generateChip();
