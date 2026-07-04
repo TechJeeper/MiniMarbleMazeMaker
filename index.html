@@ -443,6 +443,8 @@
             document.getElementById('toggleSolution').addEventListener('change', syncDisplayMode);
             document.getElementById('toggleTop').addEventListener('change', (e) => {
                 if(topMesh) topMesh.visible = e.target.checked;
+                const outerTopMesh = chipGroup ? chipGroup.getObjectByName("outerTopMesh") : null;
+                if(outerTopMesh) outerTopMesh.visible = e.target.checked;
             });
             document.getElementById('toggleKeychain').addEventListener('change', generateChip);
 
@@ -757,7 +759,12 @@
             if (solutionLine) solutionLine.visible = solutionToggle.checked && !hideHints;
 
             [startMarker, goalMarker].forEach(marker => {
-                if (marker) marker.visible = !hideHints;
+                if (marker) {
+                    marker.visible = !hideHints;
+                    if (marker.material) {
+                        marker.material.emissiveIntensity = mode === 'markers' ? (marker === startMarker ? 0.8 : 0.5) : 0.0;
+                    }
+                }
             });
 
             [startLabel, goalLabel].forEach(label => {
@@ -844,6 +851,25 @@
 
             generateMazeGraph();
 
+            // Calculate maze end position and outer start area for medium/large mazes
+            const isMedLarge = (SPEC.radius === 50.0 || SPEC.radius === 75.0);
+            const endAngle = (endCellIndex + 0.5) * 2 * Math.PI / SPEC.ringCounts[SPEC.rings-1];
+            const endR = SPEC.centerRadius + (SPEC.rings - 1.5) * RING_WIDTH;
+
+            // For medium/large mazes, the start is on the outside, attached at the endAngle
+            const OUTER_START_RADIUS = 8;
+            const OUTER_START_DIST = SPEC.radius + OUTER_START_RADIUS - 1.5;
+            const OUTER_START_X = Math.cos(endAngle) * OUTER_START_DIST;
+            // Z in 3D is -Y in 2D
+            // Wait, ExtrudeGeometry rotates by -Math.PI/2 on X.
+            // In the 2D Shape, X is X, Y is Y.
+            // So if angle is endAngle, the 2D coordinates are:
+            const OUTER_SHAPE_X = Math.cos(endAngle) * OUTER_START_DIST;
+            const OUTER_SHAPE_Y = Math.sin(endAngle) * OUTER_START_DIST;
+
+            // In 3D, after rotation, this becomes X = OUTER_SHAPE_X, Z = -OUTER_SHAPE_Y.
+            const OUTER_START_Z = -OUTER_SHAPE_Y;
+
             // Nice dark plastic material
             const material = new THREE.MeshStandardMaterial({ 
                 color: 0x1e293b, // Slate 800
@@ -873,22 +899,81 @@
 
             // 2. Outer Rim
             const rimShape = new THREE.Shape();
-            rimShape.moveTo(SPEC.radius, 0);
-            rimShape.absarc(0, 0, SPEC.radius, 0, Math.PI * 2, false);
-            const rimHole = new THREE.Path();
-            rimHole.moveTo(INNER_RADIUS, 0);
-            rimHole.absarc(0, 0, INNER_RADIUS, 0, Math.PI * 2, true);
-            rimShape.holes.push(rimHole);
             
-            // Uses new extrusion depth (NEW_MAZE_HEIGHT + overlap)
+            if (isMedLarge) {
+                // We need a gap in the rim at endAngle.
+                const gapAngle = Math.asin(4 / SPEC.radius); // 8mm gap
+                const startAngle = endAngle + gapAngle;
+                const stopAngle = endAngle - gapAngle + Math.PI * 2;
+
+                // Draw the outer arc of the rim (with gap)
+                rimShape.absarc(0, 0, SPEC.radius, startAngle, stopAngle, false);
+
+                // Draw the inner hole of the rim
+                rimShape.lineTo(INNER_RADIUS * Math.cos(stopAngle), INNER_RADIUS * Math.sin(stopAngle));
+                rimShape.absarc(0, 0, INNER_RADIUS, stopAngle, startAngle, true);
+                rimShape.lineTo(SPEC.radius * Math.cos(startAngle), SPEC.radius * Math.sin(startAngle));
+            } else {
+                rimShape.moveTo(SPEC.radius, 0);
+                rimShape.absarc(0, 0, SPEC.radius, 0, Math.PI * 2, false);
+                const rimHole = new THREE.Path();
+                rimHole.moveTo(INNER_RADIUS, 0);
+                rimHole.absarc(0, 0, INNER_RADIUS, 0, Math.PI * 2, true);
+                rimShape.holes.push(rimHole);
+            }
+
             const rimGeo = new THREE.ExtrudeGeometry(rimShape, { depth: extrudeDepth, bevelEnabled: false, curveSegments: 64 });
             rimGeo.rotateX(-Math.PI / 2);
-            // Translate to the top of the thinner base
             rimGeo.translate(0, extrudeStartY, 0);
             const rimMesh = new THREE.Mesh(rimGeo, material);
             rimMesh.receiveShadow = true;
             rimMesh.castShadow = true;
             chipGroup.add(rimMesh);
+
+            if (isMedLarge) {
+                // Add outer start base
+                const outerBaseGeo = new THREE.CylinderGeometry(OUTER_START_RADIUS, OUTER_START_RADIUS, NEW_SHELL_HEIGHT, 32);
+                outerBaseGeo.translate(OUTER_START_X, NEW_SHELL_HEIGHT / 2, OUTER_START_Z);
+                const outerBaseMesh = new THREE.Mesh(outerBaseGeo, material);
+                outerBaseMesh.receiveShadow = true;
+                outerBaseMesh.castShadow = true;
+                chipGroup.add(outerBaseMesh);
+
+                // Add outer start top
+                const outerTopGeo = new THREE.CylinderGeometry(OUTER_START_RADIUS, OUTER_START_RADIUS, NEW_SHELL_HEIGHT, 32);
+                outerTopGeo.translate(OUTER_START_X, NEW_SHELL_HEIGHT + NEW_MAZE_HEIGHT + (NEW_SHELL_HEIGHT / 2), OUTER_START_Z);
+                const outerTopMesh = new THREE.Mesh(outerTopGeo, material);
+                outerTopMesh.castShadow = true;
+                outerTopMesh.receiveShadow = true;
+                outerTopMesh.visible = document.getElementById('toggleTop').checked;
+                // Add to global list if needed, but since we are replacing event listeners, we can just attach it locally.
+                // Wait, if generateChip is called multiple times, we need to make sure event listeners don't stack.
+                // It's safer to store outerTopMesh globally or on chipGroup.
+                outerTopMesh.name = "outerTopMesh";
+                chipGroup.add(outerTopMesh);
+
+                // Add outer start wall
+                const outerWallPath = new THREE.Shape();
+                const outerGapAngle = Math.asin(4 / OUTER_START_RADIUS);
+                // The gap in the outer ring faces back towards the center (angle = endAngle + Math.PI)
+                const outStartAngle = endAngle + Math.PI + outerGapAngle;
+                const outStopAngle = endAngle + Math.PI - outerGapAngle + Math.PI * 2;
+
+                outerWallPath.absarc(OUTER_SHAPE_X, OUTER_SHAPE_Y, OUTER_START_RADIUS, outStartAngle, outStopAngle, false);
+                outerWallPath.lineTo(OUTER_SHAPE_X + (OUTER_START_RADIUS - SPEC.wallWidth) * Math.cos(outStopAngle),
+                                     OUTER_SHAPE_Y + (OUTER_START_RADIUS - SPEC.wallWidth) * Math.sin(outStopAngle));
+                outerWallPath.absarc(OUTER_SHAPE_X, OUTER_SHAPE_Y, OUTER_START_RADIUS - SPEC.wallWidth, outStopAngle, outStartAngle, true);
+                outerWallPath.lineTo(OUTER_SHAPE_X + OUTER_START_RADIUS * Math.cos(outStartAngle),
+                                     OUTER_SHAPE_Y + OUTER_START_RADIUS * Math.sin(outStartAngle));
+
+                const outerRimGeo = new THREE.ExtrudeGeometry(outerWallPath, { depth: extrudeDepth, bevelEnabled: false, curveSegments: 32 });
+                outerRimGeo.rotateX(-Math.PI / 2);
+                outerRimGeo.translate(0, extrudeStartY, 0);
+                const outerRimMesh = new THREE.Mesh(outerRimGeo, material);
+                outerRimMesh.receiveShadow = true;
+                outerRimMesh.castShadow = true;
+                chipGroup.add(outerRimMesh);
+            }
 
             // 3. Build Maze Geometry
             const mazeShapes = [];
@@ -1007,43 +1092,57 @@
             scene.add(chipGroup);
 
             // 5. Setup Markers
+            const START_X = isMedLarge ? Math.cos(endAngle) * OUTER_START_DIST : 0;
+            const START_Z = isMedLarge ? -Math.sin(endAngle) * OUTER_START_DIST : 0;
+            const GOAL_X = isMedLarge ? 0 : endR * Math.cos(endAngle);
+            const GOAL_Z = isMedLarge ? 0 : -endR * Math.sin(endAngle);
+
+            // Create markers always so they can be toggled
             const ballGeo = new THREE.SphereGeometry(VISUALS.startMarkerRadius, 16, 16);
-            const ballMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.8 });
+            const ballMat = new THREE.MeshStandardMaterial({
+                color: 0xffffff, roughness: 0.1, metalness: 0.8,
+                emissive: 0xffffff, emissiveIntensity: 0.8
+            });
             startMarker = new THREE.Mesh(ballGeo, ballMat);
-            // Update placement to center vertically in the taller maze space.
-            startMarker.position.set(0, NEW_SHELL_HEIGHT + NEW_MAZE_HEIGHT / 2, 0); 
+            startMarker.position.set(START_X, NEW_SHELL_HEIGHT + NEW_MAZE_HEIGHT / 2, START_Z);
             markersGroup.add(startMarker);
 
             const goalGeo = new THREE.CylinderGeometry(VISUALS.goalMarkerRadius, VISUALS.goalMarkerRadius, VISUALS.goalMarkerHeight, 16);
-            const goalMat = new THREE.MeshStandardMaterial({ color: 0x34d399, emissive: 0x059669 });
+            const goalMat = new THREE.MeshStandardMaterial({
+                color: 0x34d399, emissive: 0x22c55e, emissiveIntensity: 0.5
+            });
             goalMarker = new THREE.Mesh(goalGeo, goalMat);
-            
-            const endAngle = (endCellIndex + 0.5) * 2 * Math.PI / SPEC.ringCounts[SPEC.rings-1];
-            const endR = SPEC.centerRadius + (SPEC.rings - 1.5) * RING_WIDTH;
-            goalMarker.position.set(
-                endR * Math.cos(endAngle),
-                NEW_SHELL_HEIGHT + 0.2, // Position slightly above the thinner floor
-                -endR * Math.sin(endAngle)
-            );
+            goalMarker.position.set(GOAL_X, NEW_SHELL_HEIGHT + 0.2, GOAL_Z);
             markersGroup.add(goalMarker);
 
             startLabel = createLabelSprite('START', '#ffffff');
-            startLabel.position.set(0, NEW_SHELL_HEIGHT + NEW_MAZE_HEIGHT + 2.1, 0);
+            startLabel.position.set(START_X, NEW_SHELL_HEIGHT + NEW_MAZE_HEIGHT + 2.1, START_Z);
             markersGroup.add(startLabel);
 
             goalLabel = createLabelSprite('GOAL', '#34d399');
-            goalLabel.position.set(
-                goalMarker.position.x,
-                NEW_SHELL_HEIGHT + NEW_MAZE_HEIGHT + 2.1,
-                goalMarker.position.z
-            );
+            goalLabel.position.set(GOAL_X, NEW_SHELL_HEIGHT + NEW_MAZE_HEIGHT + 2.1, GOAL_Z);
             markersGroup.add(goalLabel);
 
+            // 5.5 Update visibility based on current mode
+            syncDisplayMode();
+
             const lineY = NEW_SHELL_HEIGHT + NEW_MAZE_HEIGHT + 0.18;
-            solutionPathPoints = [
-                new THREE.Vector3(0, lineY, 0),
-                ...getSolutionPath().map(node => getCellCenterPosition(node, lineY))
-            ];
+            let pathNodes = getSolutionPath();
+            let pathPositions = pathNodes.map(node => getCellCenterPosition(node, lineY));
+
+            if (isMedLarge) {
+                // Starts on the outside, goes in
+                solutionPathPoints = [
+                    new THREE.Vector3(OUTER_START_X, lineY, OUTER_START_Z),
+                    ...pathPositions.reverse(),
+                    new THREE.Vector3(0, lineY, 0)
+                ];
+            } else {
+                solutionPathPoints = [
+                    new THREE.Vector3(0, lineY, 0),
+                    ...pathPositions
+                ];
+            }
             solutionCurve = new THREE.CatmullRomCurve3(solutionPathPoints);
             const solutionGeo = new THREE.TubeGeometry(solutionCurve, Math.max(8, solutionPathPoints.length * 4), VISUALS.solutionTubeRadius, 8, false);
             const solutionMat = new THREE.MeshBasicMaterial({ color: 0x22d3ee });
