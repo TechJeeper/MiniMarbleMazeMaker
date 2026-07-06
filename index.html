@@ -115,9 +115,10 @@
                 <div>
                     <label for="sizeSelect" class="text-sm font-medium text-slate-300">Maze Size</label>
                     <select id="sizeSelect" class="control-field mt-2 cursor-pointer">
-                        <option value="40mm" selected>Small (MakerChip)</option>
-                        <option value="100mm">Medium</option>
-                        <option value="150mm">Large</option>
+                        <option value="40mm" selected>40mm — Small (MakerChip)</option>
+                        <option value="100mm">100mm — Medium</option>
+                        <option value="125mm">125mm — Large</option>
+                        <option value="150mm">150mm — XL</option>
                     </select>
                 </div>
 
@@ -210,7 +211,6 @@
         let SPEC = {
             radius: 20.0,
             thickness: 3.25,
-            shell: 0.8, // Original shell height
             outerWall: 1.0,
             wallWidth: 0.8,
             centerRadius: 4.0,
@@ -231,13 +231,15 @@
             pointerTriangleDepth: 0.87
         };
 
-        // --- Shell Height Adjustment ---
-        // Reduce top/bottom shells by half (from 0.8mm to 0.4mm)
-        let NEW_SHELL_HEIGHT = SPEC.shell / 2; // 0.4mm
+        // --- Layer / Shell Configuration (0.2mm layer height) ---
+        const LAYER_HEIGHT = 0.2;
+        const BOTTOM_SHELL_LAYERS = 2; // 2 solid first layers on all sizes
+        let TOP_SHELL_LAYERS = 2;
+        let BOTTOM_SHELL_HEIGHT = BOTTOM_SHELL_LAYERS * LAYER_HEIGHT; // 0.4mm
+        let TOP_SHELL_HEIGHT = TOP_SHELL_LAYERS * LAYER_HEIGHT; // 0.4mm
         
-        // --- Recalculate Maze Height ---
-        // The taller maze height is now calculated based on the thinner shells.
-        let NEW_MAZE_HEIGHT = SPEC.thickness - (2 * NEW_SHELL_HEIGHT); // 2.45mm
+        // Maze cavity height between bottom and top shells
+        let NEW_MAZE_HEIGHT = SPEC.thickness - BOTTOM_SHELL_HEIGHT - TOP_SHELL_HEIGHT;
         
         let INNER_RADIUS = SPEC.radius - SPEC.outerWall; // 19.0mm
         let RING_WIDTH = (INNER_RADIUS - SPEC.centerRadius) / (SPEC.rings - 1);
@@ -295,6 +297,15 @@
             }
         }
 
+        function getPauseLayer() {
+            return Math.ceil((BOTTOM_SHELL_HEIGHT + NEW_MAZE_HEIGHT) / LAYER_HEIGHT);
+        }
+
+        function buildProTip(ballUrl, ballLabel) {
+            const pauseLayer = getPauseLayer();
+            return `<strong class="text-blue-400">Pro-Tip:</strong> Slice at <strong>0.2mm layer height</strong>. Use clear filament for layers 1 &amp; 2. Set a pause at layer ${pauseLayer}, drop in a <strong><a href="${ballUrl}" target="_blank" class="underline">${ballLabel}</a></strong>, then resume!`;
+        }
+
         function updateSizeConfig() {
             const size = document.getElementById('sizeSelect').value;
             const sizeTitle = document.getElementById('sizeTitle');
@@ -306,7 +317,6 @@
                 SPEC = {
                     radius: 20.0,
                     thickness: 3.25,
-                    shell: 0.8,
                     outerWall: 1.0,
                     wallWidth: 0.8,
                     centerRadius: 4.0,
@@ -326,13 +336,11 @@
                     pointerTriangleDepth: 0.87
                 };
                 sizeTitle.innerHTML = 'Small (MakerChip) 40x3.25mm Print-in-Place Maze';
-                proTipText.innerHTML = '<strong class="text-blue-400">Pro-Tip:</strong> Slice at <strong>0.2mm layer height</strong>. Use clear filament for layers 1 &amp; 2. Set a pause at layer 15, drop in a <strong><a href="https://amzn.to/4uJ1VLD" target="_blank" class="underline">1.5mm steel ball</a></strong>, then resume!';
             } else if (size === '100mm') {
                 if (keychainContainer) keychainContainer.classList.add('hidden');
                 SPEC = {
                     radius: 50.0,
-                    thickness: 5.2, // 3 layers top + 3 layers bottom (0.2mm layers) + 4mm for 3mm ball
-                    shell: 1.2, // 3 layers at 0.2mm = 0.6mm * 2 for top/bottom combined
+                    thickness: 5.0, // 2 bottom + 3 top layers (0.2mm) + 4mm for 3mm ball
                     outerWall: 1.2,
                     wallWidth: 1.2,
                     centerRadius: 8.0,
@@ -351,38 +359,66 @@
                     pointerTriangleBase: 1.8,
                     pointerTriangleDepth: 1.55
                 };
-                sizeTitle.innerHTML = 'Medium 100x5.2mm Print-in-Place Maze';
-                proTipText.innerHTML = '<strong class="text-blue-400">Pro-Tip:</strong> Slice at <strong>0.2mm layer height</strong>. Use clear filament for layers 1 to 3. Set a pause at layer 24, drop in a <strong><a href="https://amzn.to/3vT2u5b" target="_blank" class="underline">3mm steel ball</a></strong>, then resume!';
+                sizeTitle.innerHTML = 'Medium 100x5.0mm Print-in-Place Maze';
+            } else if (size === '125mm') {
+                if (keychainContainer) keychainContainer.classList.add('hidden');
+                SPEC = {
+                    radius: 62.5,
+                    thickness: 5.0, // 2 bottom + 3 top layers (0.2mm) + 4mm for 3mm ball
+                    outerWall: 1.5,
+                    wallWidth: 1.4,
+                    centerRadius: 9.0,
+                    rings: 9,
+                    ringCounts: [1, 8, 16, 16, 32, 32, 32, 32, 32]
+                };
+                VISUALS = {
+                    startMarkerRadius: 2.0,
+                    goalMarkerRadius: 2.5,
+                    goalMarkerHeight: 0.9,
+                    previewBallRadius: 1.5, // Visual size of a 3mm bearing
+                    previewBallYOffset: 1.5,
+                    solutionTubeRadius: 0.3,
+                    labelScale: 13.0,
+                    labelHeight: 5.0,
+                    pointerTriangleBase: 2.2,
+                    pointerTriangleDepth: 1.9
+                };
+                sizeTitle.innerHTML = 'Large 125x5.0mm Print-in-Place Maze';
             } else if (size === '150mm') {
                 if (keychainContainer) keychainContainer.classList.add('hidden');
                 SPEC = {
                     radius: 75.0,
-                    thickness: 8.2, // 3 layers top + 3 layers bottom (0.2mm layers) + 7mm for 6mm ball
-                    shell: 1.2,
+                    thickness: 5.0, // 2 bottom + 3 top layers (0.2mm) + 4mm for 3mm ball
                     outerWall: 2.0,
-                    wallWidth: 2.0,
+                    wallWidth: 1.8,
                     centerRadius: 10.0,
-                    rings: 8,
-                    ringCounts: [1, 8, 16, 16, 32, 32, 32, 32]
+                    rings: 11,
+                    ringCounts: [1, 8, 16, 16, 32, 32, 32, 32, 32, 32, 32]
                 };
                 VISUALS = {
                     startMarkerRadius: 2.5,
                     goalMarkerRadius: 3.5,
                     goalMarkerHeight: 1.0,
-                    previewBallRadius: 3.0, // Visual size of a 6mm bearing
-                    previewBallYOffset: 2.5,
+                    previewBallRadius: 1.5, // Visual size of a 3mm bearing
+                    previewBallYOffset: 1.5,
                     solutionTubeRadius: 0.4,
                     labelScale: 16.5,
                     labelHeight: 6.25,
                     pointerTriangleBase: 2.8,
                     pointerTriangleDepth: 2.42
                 };
-                sizeTitle.innerHTML = 'Large 150x8.2mm Print-in-Place Maze';
-                proTipText.innerHTML = '<strong class="text-blue-400">Pro-Tip:</strong> Slice at <strong>0.2mm layer height</strong>. Use clear filament for layers 1 to 3. Set a pause at layer 39, drop in a <strong><a href="https://amzn.to/4wmdM2y" target="_blank" class="underline">6mm steel ball</a></strong>, then resume!';
+                sizeTitle.innerHTML = 'XL 150x5.0mm Print-in-Place Maze';
             }
 
-            NEW_SHELL_HEIGHT = SPEC.shell / 2;
-            NEW_MAZE_HEIGHT = SPEC.thickness - (2 * NEW_SHELL_HEIGHT);
+            TOP_SHELL_LAYERS = size === '40mm' ? 2 : 3;
+            BOTTOM_SHELL_HEIGHT = BOTTOM_SHELL_LAYERS * LAYER_HEIGHT;
+            TOP_SHELL_HEIGHT = TOP_SHELL_LAYERS * LAYER_HEIGHT;
+            NEW_MAZE_HEIGHT = SPEC.thickness - BOTTOM_SHELL_HEIGHT - TOP_SHELL_HEIGHT;
+
+            const ballInfo = size === '40mm'
+                ? { url: 'https://amzn.to/4uJ1VLD', label: '1.5mm steel ball' }
+                : { url: 'https://amzn.to/4aCpA8w', label: '3mm steel ball' };
+            proTipText.innerHTML = buildProTip(ballInfo.url, ballInfo.label);
             INNER_RADIUS = SPEC.radius - SPEC.outerWall;
             RING_WIDTH = (INNER_RADIUS - SPEC.centerRadius) / (SPEC.rings - 1);
             ensureMinPassageWidths();
@@ -493,6 +529,7 @@
                 // Scale camera out for the chosen size
                 let dist = 63;
                 if (SPEC.radius === 50.0) dist = 110;
+                else if (SPEC.radius === 62.5) dist = 135;
                 else if (SPEC.radius === 75.0) dist = 160;
                 camera.position.normalize().multiplyScalar(dist);
                 camera.updateProjectionMatrix();
@@ -602,10 +639,17 @@
             return path.reverse();
         }
 
+        function getSizeHallBonus() {
+            if (SPEC.radius >= 75.0) return 3; // XL — longer outer hall by default
+            if (SPEC.radius >= 62.5) return 1; // Large
+            return 0;
+        }
+
         function getHallLengthForDifficulty(outerCount) {
             const difficulty = getCurrentDifficulty();
-            const minHall = Math.max(3, Math.floor(outerCount * 0.1));
-            const maxHall = Math.max(minHall + 1, Math.floor(outerCount * 0.28));
+            const hallBonus = getSizeHallBonus();
+            const minHall = Math.max(3, Math.floor(outerCount * 0.1) + hallBonus);
+            const maxHall = Math.max(minHall + 1, Math.floor(outerCount * 0.28) + hallBonus);
 
             if (difficulty.goalStrategy === 'short') {
                 return minHall + Math.floor(Math.random() * 2);
@@ -619,8 +663,12 @@
             return Math.max(minHall + 1, maxHall - 1) + Math.floor(Math.random() * 2);
         }
 
+        function isKeychainEnabled() {
+            return SPEC.radius === 20.0 && document.getElementById('toggleKeychain').checked;
+        }
+
         function getDefaultHallStartIndex(outerCount) {
-            if (SPEC.radius === 20.0 && document.getElementById('toggleKeychain').checked) {
+            if (isKeychainEnabled()) {
                 return Math.floor(outerCount * 0.75);
             }
             return 0;
@@ -806,6 +854,35 @@
             return shape;
         }
 
+        function createKeychainLoopShape() {
+            const shape = new THREE.Shape();
+            const attachR = SPEC.radius;
+            const attachHalf = 0.25;
+            const startAngle = Math.PI / 2 - attachHalf;
+            const endAngle = Math.PI / 2 + attachHalf;
+
+            const cx = 0;
+            const cy = 25;
+            const loopR = 5.5;
+            const holeR = 2.5;
+
+            shape.moveTo(attachR * Math.cos(startAngle), attachR * Math.sin(startAngle));
+            shape.quadraticCurveTo(
+                2.5, 21.5,
+                loopR * Math.cos(-0.2) + cx, loopR * Math.sin(-0.2) + cy
+            );
+            shape.absarc(cx, cy, loopR, -0.2, Math.PI + 0.2, false);
+            shape.quadraticCurveTo(
+                -2.5, 21.5,
+                attachR * Math.cos(endAngle), attachR * Math.sin(endAngle)
+            );
+
+            const hole = new THREE.Path();
+            hole.absarc(cx, cy, holeR, 0, Math.PI * 2, true);
+            shape.holes.push(hole);
+            return shape;
+        }
+
         function createStartPointerShape() {
             // Triangle fused to the radial wall sealing the hall's dead end,
             // pointing tangentially down the hall AT the ball's start position.
@@ -840,8 +917,7 @@
         function shouldAddStartPointer(arrowAngle) {
             if (document.getElementById('markerMode').value === 'hidden') return false;
 
-            const keychainEnabled = SPEC.radius === 20.0 && document.getElementById('toggleKeychain').checked;
-            if (!keychainEnabled) return true;
+            if (!isKeychainEnabled()) return true;
 
             let angleDiff = Math.abs(arrowAngle - Math.PI / 2);
             if (angleDiff > Math.PI) angleDiff = 2 * Math.PI - angleDiff;
@@ -996,13 +1072,12 @@
             // Use the new, taller maze height for extrusions.
             const extrudeDepth = NEW_MAZE_HEIGHT + (Z_OVERLAP * 2);
             
-            // Maze starts at the top of the thinner bottom shell.
-            const extrudeStartY = NEW_SHELL_HEIGHT - Z_OVERLAP;
+            // Maze starts at the top of the bottom shell.
+            const extrudeStartY = BOTTOM_SHELL_HEIGHT - Z_OVERLAP;
 
-            // 1. Base Plate
-            // Geometry uses the new, thinner shell height (0.4mm)
-            const baseGeo = new THREE.CylinderGeometry(SPEC.radius, SPEC.radius, NEW_SHELL_HEIGHT, 64);
-            baseGeo.translate(0, NEW_SHELL_HEIGHT / 2, 0); // Position at origin
+            // 1. Base Plate (2 solid bottom layers at 0.2mm)
+            const baseGeo = new THREE.CylinderGeometry(SPEC.radius, SPEC.radius, BOTTOM_SHELL_HEIGHT, 64);
+            baseGeo.translate(0, BOTTOM_SHELL_HEIGHT / 2, 0); // Position at origin
             const baseMesh = new THREE.Mesh(baseGeo, material);
             baseMesh.receiveShadow = true;
             baseMesh.castShadow = true;
@@ -1089,11 +1164,9 @@
                 });
             }
 
-            // 4. Top Shell
-            // Geometry uses the new, thinner shell height (0.4mm)
-            const topGeo = new THREE.CylinderGeometry(SPEC.radius, SPEC.radius, NEW_SHELL_HEIGHT, 64);
-            // Placement calculation: [base height] + [taller maze height] + [half top shell height]
-            topGeo.translate(0, NEW_SHELL_HEIGHT + NEW_MAZE_HEIGHT + (NEW_SHELL_HEIGHT / 2), 0);
+            // 4. Top Shell (2 layers at 0.2mm for 40mm, 3 for larger sizes)
+            const topGeo = new THREE.CylinderGeometry(SPEC.radius, SPEC.radius, TOP_SHELL_HEIGHT, 64);
+            topGeo.translate(0, BOTTOM_SHELL_HEIGHT + NEW_MAZE_HEIGHT + (TOP_SHELL_HEIGHT / 2), 0);
             topMesh = new THREE.Mesh(topGeo, material);
             topMesh.castShadow = true;
             topMesh.receiveShadow = true;
@@ -1101,46 +1174,15 @@
             chipGroup.add(topMesh);
 
             // 4.5 Keychain Loop
-            if (SPEC.radius === 20.0 && document.getElementById('toggleKeychain').checked) {
-                const keychainShape = new THREE.Shape();
-
-                // The main maze radius is 20. We want to start slightly inside to ensure intersection
-                // and draw a filleted loop that sticks out.
-
-                const startAngle = Math.PI / 2 - 0.4;
-                const endAngle = Math.PI / 2 + 0.4;
-                const innerR = 18;
-
-                const cx = 0;
-                const cy = 25;
-                const outerLoopRadius = 6;
-                const holeRadius = 2.5;
-
-                // Start on the circle
-                keychainShape.moveTo(innerR * Math.cos(startAngle), innerR * Math.sin(startAngle));
-
-                // Curve up to the right side of the top loop
-                keychainShape.quadraticCurveTo(
-                    11, 20, // Control point
-                    outerLoopRadius * Math.cos(-0.2) + cx, outerLoopRadius * Math.sin(-0.2) + cy
-                );
-
-                // Arc around the top
-                keychainShape.absarc(cx, cy, outerLoopRadius, -0.2, Math.PI + 0.2, false);
-
-                // Curve back down to the left side of the circle
-                keychainShape.quadraticCurveTo(
-                    -11, 20, // Control point
-                    innerR * Math.cos(endAngle), innerR * Math.sin(endAngle)
-                );
-
-                const keychainHole = new THREE.Path();
-                keychainHole.absarc(cx, cy, holeRadius, 0, Math.PI * 2, true);
-                keychainShape.holes.push(keychainHole);
-
-                const keychainExtrudeDepth = SPEC.thickness + SPEC.shell;
-                // The keychain needs to be flush with the bottom of the base
-                const keychainGeo = new THREE.ExtrudeGeometry(keychainShape, { depth: keychainExtrudeDepth, bevelEnabled: false, curveSegments: 32 });
+            if (isKeychainEnabled()) {
+                const keychainGeo = new THREE.ExtrudeGeometry(createKeychainLoopShape(), {
+                    depth: SPEC.thickness,
+                    bevelEnabled: true,
+                    bevelThickness: 0.25,
+                    bevelSize: 0.25,
+                    bevelSegments: 2,
+                    curveSegments: 32
+                });
                 keychainGeo.rotateX(-Math.PI / 2);
                 const keychainMesh = new THREE.Mesh(keychainGeo, material);
                 keychainMesh.receiveShadow = true;
@@ -1159,7 +1201,7 @@
             startMarker = new THREE.Mesh(ballGeo, ballMat);
             startMarker.position.set(
                 hallStartR * Math.cos(hallStartAngle),
-                NEW_SHELL_HEIGHT + NEW_MAZE_HEIGHT / 2,
+                BOTTOM_SHELL_HEIGHT + NEW_MAZE_HEIGHT / 2,
                 -hallStartR * Math.sin(hallStartAngle)
             );
             markersGroup.add(startMarker);
@@ -1167,22 +1209,22 @@
             const goalGeo = new THREE.CylinderGeometry(VISUALS.goalMarkerRadius, VISUALS.goalMarkerRadius, VISUALS.goalMarkerHeight, 16);
             const goalMat = new THREE.MeshStandardMaterial({ color: 0x34d399, emissive: 0x059669 });
             goalMarker = new THREE.Mesh(goalGeo, goalMat);
-            goalMarker.position.set(0, NEW_SHELL_HEIGHT + 0.2, 0);
+            goalMarker.position.set(0, BOTTOM_SHELL_HEIGHT + 0.2, 0);
             markersGroup.add(goalMarker);
 
             startLabel = createLabelSprite('START', '#ffffff');
             startLabel.position.set(
                 startMarker.position.x,
-                NEW_SHELL_HEIGHT + NEW_MAZE_HEIGHT + 2.1,
+                BOTTOM_SHELL_HEIGHT + NEW_MAZE_HEIGHT + 2.1,
                 startMarker.position.z
             );
             markersGroup.add(startLabel);
 
             goalLabel = createLabelSprite('GOAL', '#34d399');
-            goalLabel.position.set(0, NEW_SHELL_HEIGHT + NEW_MAZE_HEIGHT + 2.1, 0);
+            goalLabel.position.set(0, BOTTOM_SHELL_HEIGHT + NEW_MAZE_HEIGHT + 2.1, 0);
             markersGroup.add(goalLabel);
 
-            const lineY = NEW_SHELL_HEIGHT + NEW_MAZE_HEIGHT + 0.18;
+            const lineY = BOTTOM_SHELL_HEIGHT + NEW_MAZE_HEIGHT + 0.18;
             const solutionNodes = getSolutionPath();
             solutionPathPoints = [
                 ...solutionNodes.map(node => getCellCenterPosition(node, lineY)),
